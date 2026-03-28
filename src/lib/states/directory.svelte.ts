@@ -20,13 +20,23 @@ export class Directory {
   readonly pathIsValid = $derived(!this._pathError);
   ignoreSystemFiles = $state(true);
   private _allFiles: File[] = $state([]);
-  readonly files = $derived(
-    this.ignoreSystemFiles
+  fileFilterPattern = $state("");
+  readonly files = $derived.by(() => {
+    let result = this.ignoreSystemFiles
       ? this._allFiles.filter(
           (f) => !SYSTEM_FILES.has(f.name) && !f.name.startsWith("."),
         )
-      : this._allFiles,
-  );
+      : this._allFiles;
+    if (this.fileFilterPattern) {
+      try {
+        const regex = new RegExp(this.fileFilterPattern);
+        result = result.filter((f) => regex.test(f.name));
+      } catch {
+        // invalid pattern — show all
+      }
+    }
+    return result;
+  });
   fileNamePattern = $state("(?<number>\\d\\d)\\..*");
   private readonly _parsedFileNamePattern = $derived.by(() => {
     if (!this.fileNamePattern) return null;
@@ -122,6 +132,7 @@ export class Directory {
   }
 
   private updateNewFileName(file: File) {
+    debugger;
     if (file.ignore) {
       file.newName = "";
       return;
@@ -143,16 +154,19 @@ export class Directory {
         (m, key) => ({ ...vars, ...groups })[key] ?? m,
       );
 
-    file.newName = regex
-      ? file.name.replace(regex, (_, ...args) =>
-          resolve(args.at(-1) as Record<string, string>),
-        )
-      : resolve();
+    if (regex) {
+      const match = regex.exec(file.name);
+      file.matchError = !match;
+      file.newName = resolve(match?.groups ?? {});
+    } else {
+      file.matchError = false;
+      file.newName = resolve();
+    }
   }
 
   async renameAll() {
     const pendingRenames = this.files.filter(
-      (f) => !f.ignore && f.newName && f.newName !== f.name,
+      (f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
     );
 
     let errors = false;

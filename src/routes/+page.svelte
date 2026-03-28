@@ -57,6 +57,15 @@
     </div>
 
     <div class="field">
+      <label for="filter-input">Filter pattern</label>
+      <input
+        id="filter-input"
+        placeholder="Filter files by name..."
+        bind:value={directory.fileFilterPattern}
+      />
+    </div>
+
+    <div class="field">
       <label for="match-input">Match pattern</label>
       <input
         id="match-input"
@@ -94,7 +103,8 @@
       <button
         onclick={async () => {
           const count = directory.files.filter(
-            (f) => !f.ignore && f.newName && f.newName !== f.name,
+            (f) =>
+              !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
           ).length;
           if (await confirm(`Rename ${count} file(s)?`)) {
             await directory.renameAll();
@@ -105,6 +115,11 @@
   </section>
 
   <section class="files">
+    <p class="file-count">
+      {directory.files.filter(
+        (f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
+      ).length} / {directory.files.length}
+    </p>
     <table>
       <thead>
         <tr>
@@ -127,7 +142,13 @@
                 bind:value={file.overridePattern}
               />
             </td>
-            <td>{#if file.renameError}<span class="error">{file.renameError}</span>{/if}</td>
+            <td>
+              {#if file.renameError}<span class="error">{file.renameError}</span
+                >
+              {:else if file.matchError}<span class="error"
+                  >Match pattern does not match</span
+                >{/if}
+            </td>
           </tr>
         {/each}
       </tbody>
@@ -212,6 +233,12 @@
 
   .files {
     padding: 1rem;
+  }
+
+  .file-count {
+    margin: 0 0 0.5rem;
+    font-size: 0.85rem;
+    color: #666;
   }
 
   table {
