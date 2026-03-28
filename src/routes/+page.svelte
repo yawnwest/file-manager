@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Directory } from "$lib/states/directory.svelte";
   import { Zoom } from "$lib/states/zoom.svelte";
-  import { open } from "@tauri-apps/plugin-dialog";
+  import { open, confirm } from "@tauri-apps/plugin-dialog";
   import { onDestroy } from "svelte";
 
   const zoom = new Zoom();
@@ -21,7 +21,8 @@
 
   function addGroupToNewName(groupName: string) {
     const insertion = `$<${groupName}>`;
-    const start = newNameInput.selectionStart ?? directory.newFileNamePattern.length;
+    const start =
+      newNameInput.selectionStart ?? directory.newFileNamePattern.length;
     const end = newNameInput.selectionEnd ?? start;
     directory.newFileNamePattern =
       directory.newFileNamePattern.slice(0, start) +
@@ -55,6 +56,17 @@
       bind:this={newNameInput}
     />
     <button onclick={() => openDir()}>Open ...</button>
+    <button onclick={() => directory.reload()}>Reload</button>
+    <button
+      onclick={async () => {
+        const count = directory.files.filter(
+          (f) => !f.ignore && f.newName && f.newName !== f.name,
+        ).length;
+        if (await confirm(`Rename ${count} file(s)?`)) {
+          await directory.renameAll();
+        }
+      }}>Rename all</button
+    >
   </div>
   <p class="error">{directory.pathError}</p>
 
@@ -66,7 +78,8 @@
   <ul>
     {#each directory.groupNames as groupName, _}
       <li>
-        <button onclick={() => addGroupToNewName(groupName)}>{groupName}</button>
+        <button onclick={() => addGroupToNewName(groupName)}>{groupName}</button
+        >
       </li>
     {/each}
   </ul>
@@ -77,13 +90,14 @@
   </ul>
   <ul>
     {#each directory.files as file, _}
-      <li>
+      <li class:failed={file.renameError}>
         <input type="checkbox" bind:checked={file.ignore} />
         <input
           placeholder="Override pattern..."
           bind:value={file.overridePattern}
         />
         {file.newName}
+        <span class="error">{file.renameError}</span>
       </li>
     {/each}
   </ul>

@@ -1,5 +1,6 @@
-import { readDir } from "@tauri-apps/plugin-fs";
+import { readDir, rename } from "@tauri-apps/plugin-fs";
 import { File } from "$lib/states/file.svelte";
+import { error } from "@sveltejs/kit";
 
 const SYSTEM_FILES = new Set([
   // macOS
@@ -101,6 +102,10 @@ export class Directory {
     }, 300);
   }
 
+  reload() {
+    this._readDir();
+  }
+
   private _updateGroupNames() {
     this._groupNames = [
       "name",
@@ -143,6 +148,37 @@ export class Directory {
           resolve(args.at(-1) as Record<string, string>),
         )
       : resolve();
+  }
+
+  async renameAll() {
+    const pendingRenames = this.files.filter(
+      (f) => !f.ignore && f.newName && f.newName !== f.name,
+    );
+
+    let errors = false;
+    for (const file of pendingRenames) {
+      file.renameError = "";
+      if (this._allFiles.some((f) => f.name === file.newName)) {
+        errors = true;
+        file.renameError = `"${file.newName}" already exists`;
+        continue;
+      }
+      try {
+        await rename(
+          `${this.path}/${file.name}`,
+          `${this.path}/${file.newName}`,
+        );
+        file.name = file.newName;
+      } catch (e) {
+        errors = true;
+        file.renameError = String(e);
+      }
+    }
+    if (!errors) {
+      this._readDir();
+    } else {
+      this._updateNewFileNames();
+    }
   }
 
   private splitFileName(fileName: string): { base: string; ext: string } {
