@@ -1,6 +1,5 @@
 import { readDir, rename } from "@tauri-apps/plugin-fs";
 import { File } from "$lib/states/file.svelte";
-import { error } from "@sveltejs/kit";
 
 const SYSTEM_FILES = new Set([
   // macOS
@@ -15,12 +14,15 @@ const SYSTEM_FILES = new Set([
 ]);
 
 export class Directory {
+  // Path
   path = $state("");
   private _pathError = $state("");
   readonly pathIsValid = $derived(!this._pathError);
+
+  // Files
   ignoreSystemFiles = $state(true);
-  private _allFiles: File[] = $state([]);
   fileFilterPattern = $state("");
+  private _allFiles: File[] = $state([]);
   readonly files = $derived.by(() => {
     let result = this.ignoreSystemFiles
       ? this._allFiles.filter(
@@ -37,6 +39,10 @@ export class Directory {
     }
     return result;
   });
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private requestId = 0;
+
+  // Rename
   fileNamePattern = $state("(?<number>\\d\\d)\\..*");
   private readonly _parsedFileNamePattern = $derived.by(() => {
     if (!this.fileNamePattern) return null;
@@ -47,15 +53,20 @@ export class Directory {
     }
   });
   newFileNamePattern = $state("$<number>.ignore.txt");
-  private _groupNames: string[] = $state([]);
+  private readonly _groupNames = $derived([
+    "name",
+    "base",
+    "ext",
+    ...[...this.fileNamePattern.matchAll(/\(\?<([^>]+)>/g)].map((m) => m[1]),
+  ]);
 
-  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private requestId = 0;
+  // Lifecycle
   readonly cleanup: () => void;
 
   get pathError() {
     return this._pathError;
   }
+
   get groupNames() {
     return this._groupNames;
   }
@@ -67,16 +78,47 @@ export class Directory {
         this._readDir();
       });
       $effect(() => {
-        void this.fileNamePattern;
-        this._updateGroupNames();
-      });
-      $effect(() => {
         void this.files;
         void this.fileNamePattern;
         void this.newFileNamePattern;
         this._updateNewFileNames();
       });
     });
+  }
+
+  reload() {
+    this._readDir();
+  }
+
+  async renameAll() {
+    const pendingRenames = this.files.filter(
+      (f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
+    );
+
+    let errors = false;
+    for (const file of pendingRenames) {
+      file.renameError = "";
+      if (this._allFiles.some((f) => f.name === file.newName)) {
+        errors = true;
+        file.renameError = `"${file.newName}" already exists`;
+        continue;
+      }
+      try {
+        await rename(
+          `${this.path}/${file.name}`,
+          `${this.path}/${file.newName}`,
+        );
+        file.name = file.newName;
+      } catch (e) {
+        errors = true;
+        file.renameError = String(e);
+      }
+    }
+    if (!errors) {
+      this._readDir();
+    } else {
+      this._updateNewFileNames();
+    }
   }
 
   private _readDir() {
@@ -112,33 +154,19 @@ export class Directory {
     }, 300);
   }
 
-  reload() {
-    this._readDir();
-  }
-
-  private _updateGroupNames() {
-    this._groupNames = [
-      "name",
-      "base",
-      "ext",
-      ...[...this.fileNamePattern.matchAll(/\(\?<([^>]+)>/g)].map((m) => m[1]),
-    ];
-  }
-
   private _updateNewFileNames() {
     for (const file of this.files) {
-      this.updateNewFileName(file);
+      this._updateNewFileName(file);
     }
   }
 
-  private updateNewFileName(file: File) {
-    debugger;
+  private _updateNewFileName(file: File) {
     if (file.ignore) {
       file.newName = "";
       return;
     }
 
-    const { base, ext } = this.splitFileName(file.name);
+    const { base, ext } = this._splitFileName(file.name);
     const vars: Record<string, string> = {
       name: file.name,
       base,
@@ -164,38 +192,7 @@ export class Directory {
     }
   }
 
-  async renameAll() {
-    const pendingRenames = this.files.filter(
-      (f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
-    );
-
-    let errors = false;
-    for (const file of pendingRenames) {
-      file.renameError = "";
-      if (this._allFiles.some((f) => f.name === file.newName)) {
-        errors = true;
-        file.renameError = `"${file.newName}" already exists`;
-        continue;
-      }
-      try {
-        await rename(
-          `${this.path}/${file.name}`,
-          `${this.path}/${file.newName}`,
-        );
-        file.name = file.newName;
-      } catch (e) {
-        errors = true;
-        file.renameError = String(e);
-      }
-    }
-    if (!errors) {
-      this._readDir();
-    } else {
-      this._updateNewFileNames();
-    }
-  }
-
-  private splitFileName(fileName: string): { base: string; ext: string } {
+  private _splitFileName(fileName: string): { base: string; ext: string } {
     const dot = fileName.lastIndexOf(".");
     if (dot <= 0) return { base: fileName, ext: "" };
     return { base: fileName.slice(0, dot), ext: fileName.slice(dot + 1) };
