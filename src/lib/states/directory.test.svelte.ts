@@ -33,7 +33,7 @@ describe("Directory", () => {
 
   it("has empty files and no error initially", () => {
     expect(dir.files).toEqual([]);
-    expect(dir.error).toBe("");
+    expect(dir.pathError).toBe("");
   });
 
   it("calls readDir after 300ms debounce", async () => {
@@ -60,8 +60,8 @@ describe("Directory", () => {
     vi.advanceTimersByTime(300);
     await flushPromises();
 
-    expect(dir.files).toEqual(["file.txt", "image.png"]);
-    expect(dir.error).toBe("");
+    expect(dir.files.map((f) => f.name)).toEqual(["file.txt", "image.png"]);
+    expect(dir.pathError).toBe("");
   });
 
   it("sets error and clears files on readDir failure", async () => {
@@ -73,7 +73,7 @@ describe("Directory", () => {
     await flushPromises(3);
 
     expect(dir.files).toEqual([]);
-    expect(dir.error).toBe("Error: Permission denied");
+    expect(dir.pathError).toBe("Error: Permission denied");
   });
 
   it("debounces rapid path changes", async () => {
@@ -103,13 +103,13 @@ describe("Directory", () => {
     await Promise.resolve();
     vi.advanceTimersByTime(300);
     await flushPromises();
-    expect(dir.files).toEqual(["file.txt"]);
+    expect(dir.files.map((f) => f.name)).toEqual(["file.txt"]);
 
     dir.path = "";
     await Promise.resolve();
 
     expect(dir.files).toEqual([]);
-    expect(dir.error).toBe("");
+    expect(dir.pathError).toBe("");
   });
 
   it("ignores stale responses from superseded requests", async () => {
@@ -135,11 +135,11 @@ describe("Directory", () => {
     await Promise.resolve();
     vi.advanceTimersByTime(300);
     await flushPromises();
-    expect(dir.files).toEqual(["second.txt"]);
+    expect(dir.files.map((f) => f.name)).toEqual(["second.txt"]);
 
     // First request resolves late — should be ignored
     resolveFirst([{ name: "first.txt", isFile: true }]);
     await flushPromises();
-    expect(dir.files).toEqual(["second.txt"]);
+    expect(dir.files.map((f) => f.name)).toEqual(["second.txt"]);
   });
 });
