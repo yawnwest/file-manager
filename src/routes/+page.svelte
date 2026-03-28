@@ -1,22 +1,20 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
+  import { Directory } from "$lib/states/directory.svelte";
 
-  let name = $state("");
-  let greetMsg = $state("");
-
-  async function greet(event: Event) {
-    event.preventDefault();
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    greetMsg = await invoke("greet", { name });
-  }
+  const directory = new Directory();
 </script>
 
 <main class="container">
-  <form class="row" onsubmit={greet}>
-    <input id="greet-input" placeholder="Enter a name..." bind:value={name} />
-    <button type="submit">Greet</button>
+  <form class="row">
+    <input placeholder="Enter a directory..." bind:value={directory.path} />
   </form>
-  <p>{greetMsg}</p>
+  <p>{directory.error}</p>
+
+  <ul>
+    {#each directory.files as file, _}
+      <li>{file}</li>
+    {/each}
+  </ul>
 </main>
 
 <style>
