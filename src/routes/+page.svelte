@@ -1,8 +1,12 @@
 <script lang="ts">
   import { Directory } from "$lib/states/directory.svelte";
+  import { Zoom } from "$lib/states/zoom.svelte";
 
+  const zoom = new Zoom();
   const directory = new Directory();
 </script>
+
+<svelte:window onkeydown={zoom.handleKeydown} />
 
 <main class="container">
   <form class="row">
