@@ -22,10 +22,7 @@ writeFileSync("src-tauri/Cargo.toml", cargo);
 // src-tauri/tauri.conf.json
 const tauri = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf8"));
 tauri.version = version;
-writeFileSync(
-  "src-tauri/tauri.conf.json",
-  JSON.stringify(tauri, null, 2) + "\n",
-);
+writeFileSync("src-tauri/tauri.conf.json", JSON.stringify(tauri, null, 2) + "\n");
 
 console.log(`Bumped to ${version}`);
 
