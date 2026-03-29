@@ -2,10 +2,27 @@
   import { Directory } from "$lib/states/directory.svelte";
   import { Zoom } from "$lib/states/zoom.svelte";
   import { open, confirm } from "@tauri-apps/plugin-dialog";
-  import { onDestroy } from "svelte";
+  import { onDestroy, onMount } from "svelte";
+  import { check } from "@tauri-apps/plugin-updater";
 
   const zoom = new Zoom();
   const directory = new Directory();
+
+  onMount(async () => {
+    try {
+      const update = await check();
+      if (update) {
+        const install = await confirm(`Version ${update.version} is available. Install now?`, {
+          title: "Update available",
+        });
+        if (install) {
+          await update.downloadAndInstall();
+        }
+      }
+    } catch (e) {
+      console.error("Update check failed:", e);
+    }
+  });
   onDestroy(() => directory.cleanup());
 
   async function openDir() {

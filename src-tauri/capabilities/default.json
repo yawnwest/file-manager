@@ -8,6 +8,7 @@
     "dialog:default",
     "opener:default",
     "fs:default",
+    "updater:default",
     {
       "identifier": "fs:allow-read-dir",
       "allow": [{ "path": "$HOME" }, { "path": "$HOME/**" }]
