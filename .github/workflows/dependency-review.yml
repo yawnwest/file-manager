@@ -1,8 +1,9 @@
 name: Dependency Review
 
 on:
-  pull_request:
-    # branches: [main] # TODO enable
+  push:
+  # pull_request: # todo enable and remove push:
+  # branches: [main] # TODO enable
 
 jobs:
   dependency-review:
