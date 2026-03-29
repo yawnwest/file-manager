@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     name: ${{ matrix.os }}
@@ -21,8 +24,6 @@ jobs:
           - os: ubuntu-latest
             args: ""
             rust-targets: ""
-    permissions:
-      contents: write
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
