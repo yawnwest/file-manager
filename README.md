@@ -11,6 +11,18 @@ A desktop file batch-renaming tool.
 - Insert captured groups into the rename pattern with one click
 - Auto-update on launch
 
+## Installation
+
+### macOS
+
+Download the `.dmg` from the [latest release](../../releases/latest), open it, and drag the app to your Applications folder.
+
+Since the app is not code-signed, macOS may show a "damaged" error. To fix this, run:
+
+```sh
+xattr -cr /Applications/File\ Manager.app
+```
+
 ## Development
 
 **Prerequisites:** [Node.js](https://nodejs.org), [pnpm](https://pnpm.io), [Rust](https://rustup.rs)
