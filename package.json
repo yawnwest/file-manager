@@ -17,7 +17,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "version": "node scripts/version.mjs"
   },
   "lint-staged": {
     "*.{ts,svelte,svelte.ts,js,json,md,yml,html,css}": "prettier --write"
