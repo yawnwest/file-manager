@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { DirEntry } from "@tauri-apps/plugin-fs";
 import { Directory } from "./directory.svelte.js";
 
 vi.mock("@tauri-apps/plugin-fs", () => ({
@@ -55,7 +56,7 @@ describe("Directory", () => {
       { name: "file.txt", isFile: true },
       { name: "folder", isFile: false },
       { name: "image.png", isFile: true },
-    ] as any);
+    ] as unknown as DirEntry[]);
 
     dir.path = "/some/path";
     await Promise.resolve();
@@ -99,7 +100,7 @@ describe("Directory", () => {
   });
 
   it("clears files and error when path is reset to empty", async () => {
-    mockReadDir.mockResolvedValue([{ name: "file.txt", isFile: true }] as any);
+    mockReadDir.mockResolvedValue([{ name: "file.txt", isFile: true }] as unknown as DirEntry[]);
 
     dir.path = "/some/path";
     await Promise.resolve();
@@ -115,7 +116,7 @@ describe("Directory", () => {
   });
 
   it("ignores stale responses from superseded requests", async () => {
-    let resolveFirst!: (v: any) => void;
+    let resolveFirst!: (v: DirEntry[]) => void;
     mockReadDir
       .mockImplementationOnce(
         () =>
@@ -123,7 +124,7 @@ describe("Directory", () => {
             resolveFirst = r;
           }),
       )
-      .mockResolvedValueOnce([{ name: "second.txt", isFile: true }] as any);
+      .mockResolvedValueOnce([{ name: "second.txt", isFile: true }] as unknown as DirEntry[]);
 
     // First request starts, stays pending
     dir.path = "/path/1";
@@ -140,7 +141,7 @@ describe("Directory", () => {
     expect(dir.files.map((f) => f.name)).toEqual(["second.txt"]);
 
     // First request resolves late — should be ignored
-    resolveFirst([{ name: "first.txt", isFile: true }]);
+    resolveFirst([{ name: "first.txt", isFile: true, isDirectory: false, isSymlink: false }]);
     await flushPromises();
     expect(dir.files.map((f) => f.name)).toEqual(["second.txt"]);
   });
@@ -150,18 +151,14 @@ describe("Directory", () => {
       { name: "zebra.txt", isFile: true },
       { name: "apple.txt", isFile: true },
       { name: "mango.txt", isFile: true },
-    ] as any);
+    ] as unknown as DirEntry[]);
 
     dir.path = "/some/path";
     await Promise.resolve();
     vi.advanceTimersByTime(300);
     await flushPromises();
 
-    expect(dir.files.map((f) => f.name)).toEqual([
-      "apple.txt",
-      "mango.txt",
-      "zebra.txt",
-    ]);
+    expect(dir.files.map((f) => f.name)).toEqual(["apple.txt", "mango.txt", "zebra.txt"]);
   });
 
   it("filters system files when ignoreSystemFiles is true", async () => {
@@ -169,7 +166,7 @@ describe("Directory", () => {
       { name: ".DS_Store", isFile: true },
       { name: ".hidden", isFile: true },
       { name: "visible.txt", isFile: true },
-    ] as any);
+    ] as unknown as DirEntry[]);
 
     dir.path = "/some/path";
     await Promise.resolve();
@@ -183,7 +180,7 @@ describe("Directory", () => {
     mockReadDir.mockResolvedValue([
       { name: ".DS_Store", isFile: true },
       { name: "visible.txt", isFile: true },
-    ] as any);
+    ] as unknown as DirEntry[]);
 
     dir.ignoreSystemFiles = false;
     dir.path = "/some/path";
@@ -199,7 +196,7 @@ describe("Directory", () => {
       { name: "01.mp3", isFile: true },
       { name: "02.mp3", isFile: true },
       { name: "notes.txt", isFile: true },
-    ] as any);
+    ] as unknown as DirEntry[]);
 
     dir.path = "/some/path";
     await Promise.resolve();
@@ -216,7 +213,7 @@ describe("Directory", () => {
     mockReadDir.mockResolvedValue([
       { name: "a.txt", isFile: true },
       { name: "b.txt", isFile: true },
-    ] as any);
+    ] as unknown as DirEntry[]);
 
     dir.path = "/some/path";
     await Promise.resolve();
@@ -244,9 +241,7 @@ describe("Directory", () => {
   });
 
   it("computes newName for files matching the pattern", async () => {
-    mockReadDir.mockResolvedValue([
-      { name: "01.track.mp3", isFile: true },
-    ] as any);
+    mockReadDir.mockResolvedValue([{ name: "01.track.mp3", isFile: true }] as unknown as DirEntry[]);
 
     dir.fileNamePattern = "(?<number>\\d\\d)\\..*";
     dir.newFileNamePattern = "$<number> - $<base>.$<ext>";
@@ -260,9 +255,7 @@ describe("Directory", () => {
   });
 
   it("sets matchError when file does not match fileNamePattern", async () => {
-    mockReadDir.mockResolvedValue([
-      { name: "no-number.mp3", isFile: true },
-    ] as any);
+    mockReadDir.mockResolvedValue([{ name: "no-number.mp3", isFile: true }] as unknown as DirEntry[]);
 
     dir.fileNamePattern = "(?<number>\\d\\d)\\..*";
     dir.path = "/some/path";
@@ -274,9 +267,7 @@ describe("Directory", () => {
   });
 
   it("skips newName computation for ignored files", async () => {
-    mockReadDir.mockResolvedValue([
-      { name: "01.track.mp3", isFile: true },
-    ] as any);
+    mockReadDir.mockResolvedValue([{ name: "01.track.mp3", isFile: true }] as unknown as DirEntry[]);
 
     dir.path = "/some/path";
     await Promise.resolve();
@@ -290,9 +281,7 @@ describe("Directory", () => {
   });
 
   it("uses overridePattern per file instead of global newFileNamePattern", async () => {
-    mockReadDir.mockResolvedValue([
-      { name: "01.track.mp3", isFile: true },
-    ] as any);
+    mockReadDir.mockResolvedValue([{ name: "01.track.mp3", isFile: true }] as unknown as DirEntry[]);
 
     dir.fileNamePattern = "(?<number>\\d\\d)\\..*";
     dir.newFileNamePattern = "$<number>.default.mp3";
@@ -308,9 +297,7 @@ describe("Directory", () => {
   });
 
   it("renameAll renames matching files and reloads", async () => {
-    mockReadDir.mockResolvedValue([
-      { name: "01.track.mp3", isFile: true },
-    ] as any);
+    mockReadDir.mockResolvedValue([{ name: "01.track.mp3", isFile: true }] as unknown as DirEntry[]);
     mockRename.mockResolvedValue(undefined);
 
     dir.fileNamePattern = "(?<number>\\d\\d)\\..*";
@@ -320,18 +307,13 @@ describe("Directory", () => {
     vi.advanceTimersByTime(300);
     await flushPromises(4);
 
-    mockReadDir.mockResolvedValue([
-      { name: "01.new.mp3", isFile: true },
-    ] as any);
+    mockReadDir.mockResolvedValue([{ name: "01.new.mp3", isFile: true }] as unknown as DirEntry[]);
 
     await dir.renameAll();
     vi.advanceTimersByTime(300);
     await flushPromises();
 
-    expect(mockRename).toHaveBeenCalledWith(
-      "/some/path/01.track.mp3",
-      "/some/path/01.new.mp3",
-    );
+    expect(mockRename).toHaveBeenCalledWith("/some/path/01.track.mp3", "/some/path/01.new.mp3");
     expect(dir.files.map((f) => f.name)).toEqual(["01.new.mp3"]);
   });
 
@@ -339,7 +321,7 @@ describe("Directory", () => {
     mockReadDir.mockResolvedValue([
       { name: "01.track.mp3", isFile: true },
       { name: "01.new.mp3", isFile: true },
-    ] as any);
+    ] as unknown as DirEntry[]);
 
     dir.fileNamePattern = "(?<number>\\d\\d)\\..*";
     dir.newFileNamePattern = "$<number>.new.mp3";
@@ -356,9 +338,7 @@ describe("Directory", () => {
   });
 
   it("renameAll skips ignored files", async () => {
-    mockReadDir.mockResolvedValue([
-      { name: "01.track.mp3", isFile: true },
-    ] as any);
+    mockReadDir.mockResolvedValue([{ name: "01.track.mp3", isFile: true }] as unknown as DirEntry[]);
 
     dir.fileNamePattern = "(?<number>\\d\\d)\\..*";
     dir.newFileNamePattern = "$<number>.new.mp3";

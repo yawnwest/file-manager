@@ -21,13 +21,10 @@
 
   function addGroupToNewName(groupName: string) {
     const insertion = `$<${groupName}>`;
-    const start =
-      newNameInput.selectionStart ?? directory.newFileNamePattern.length;
+    const start = newNameInput.selectionStart ?? directory.newFileNamePattern.length;
     const end = newNameInput.selectionEnd ?? start;
     directory.newFileNamePattern =
-      directory.newFileNamePattern.slice(0, start) +
-      insertion +
-      directory.newFileNamePattern.slice(end);
+      directory.newFileNamePattern.slice(0, start) + insertion + directory.newFileNamePattern.slice(end);
     // Restore cursor position after the inserted text
     const newPos = start + insertion.length;
     requestAnimationFrame(() => {
@@ -58,20 +55,12 @@
 
     <div class="field">
       <label for="filter-input">Filter pattern</label>
-      <input
-        id="filter-input"
-        placeholder="Filter files by name..."
-        bind:value={directory.fileFilterPattern}
-      />
+      <input id="filter-input" placeholder="Filter files by name..." bind:value={directory.fileFilterPattern} />
     </div>
 
     <div class="field">
       <label for="match-input">Match pattern</label>
-      <input
-        id="match-input"
-        placeholder="Enter file name pattern..."
-        bind:value={directory.fileNamePattern}
-      />
+      <input id="match-input" placeholder="Enter file name pattern..." bind:value={directory.fileNamePattern} />
     </div>
 
     <div class="field">
@@ -85,11 +74,8 @@
       {#if directory.groupNames.length > 0}
         <div class="groups">
           <span class="groups-label">Insert group:</span>
-          {#each directory.groupNames as groupName, _}
-            <button
-              class="group-btn"
-              onclick={() => addGroupToNewName(groupName)}>{groupName}</button
-            >
+          {#each directory.groupNames as groupName (groupName)}
+            <button class="group-btn" onclick={() => addGroupToNewName(groupName)}>{groupName}</button>
           {/each}
         </div>
       {/if}
@@ -103,8 +89,7 @@
       <button
         onclick={async () => {
           const count = directory.files.filter(
-            (f) =>
-              !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
+            (f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
           ).length;
           if (await confirm(`Rename ${count} file(s)?`)) {
             await directory.renameAll();
@@ -116,9 +101,8 @@
 
   <section class="files">
     <p class="file-count">
-      {directory.files.filter(
-        (f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
-      ).length} / {directory.files.length}
+      {directory.files.filter((f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name).length} / {directory
+        .files.length}
     </p>
     <table>
       <thead>
@@ -131,23 +115,17 @@
         </tr>
       </thead>
       <tbody>
-        {#each directory.files as file, _}
+        {#each directory.files as file (file.name)}
           <tr class:failed={file.renameError}>
             <td><input type="checkbox" bind:checked={file.ignore} /></td>
             <td>{file.name}</td>
             <td>{file.newName}</td>
             <td>
-              <input
-                placeholder="Override pattern..."
-                bind:value={file.overridePattern}
-              />
+              <input placeholder="Override pattern..." bind:value={file.overridePattern} />
             </td>
             <td>
-              {#if file.renameError}<span class="error">{file.renameError}</span
-                >
-              {:else if file.matchError}<span class="error"
-                  >Match pattern does not match</span
-                >{/if}
+              {#if file.renameError}<span class="error">{file.renameError}</span>
+              {:else if file.matchError}<span class="error">Match pattern does not match</span>{/if}
             </td>
           </tr>
         {/each}

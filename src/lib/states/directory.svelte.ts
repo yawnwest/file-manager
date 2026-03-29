@@ -25,9 +25,7 @@ export class Directory {
   private _allFiles: File[] = $state([]);
   readonly files = $derived.by(() => {
     let result = this.ignoreSystemFiles
-      ? this._allFiles.filter(
-          (f) => !SYSTEM_FILES.has(f.name) && !f.name.startsWith("."),
-        )
+      ? this._allFiles.filter((f) => !SYSTEM_FILES.has(f.name) && !f.name.startsWith("."))
       : this._allFiles;
     if (this.fileFilterPattern) {
       try {
@@ -91,9 +89,7 @@ export class Directory {
   }
 
   async renameAll() {
-    const pendingRenames = this.files.filter(
-      (f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name,
-    );
+    const pendingRenames = this.files.filter((f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name);
 
     let errors = false;
     for (const file of pendingRenames) {
@@ -104,10 +100,7 @@ export class Directory {
         continue;
       }
       try {
-        await rename(
-          `${this.path}/${file.name}`,
-          `${this.path}/${file.newName}`,
-        );
+        await rename(`${this.path}/${file.name}`, `${this.path}/${file.newName}`);
         file.name = file.newName;
       } catch (e) {
         errors = true;
@@ -177,10 +170,7 @@ export class Directory {
     const regex = this._parsedFileNamePattern;
 
     const resolve = (groups: Record<string, string> = {}) =>
-      newPattern.replace(
-        /\$<(\w+)>/g,
-        (m, key) => ({ ...vars, ...groups })[key] ?? m,
-      );
+      newPattern.replace(/\$<(\w+)>/g, (m, key) => ({ ...vars, ...groups })[key] ?? m);
 
     if (regex) {
       const match = regex.exec(file.name);
