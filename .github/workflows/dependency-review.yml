@@ -16,3 +16,4 @@ jobs:
         with:
           show-openssf-scorecard: false
           fail-on-severity: high
+          retry-on-snapshot-warnings: true
