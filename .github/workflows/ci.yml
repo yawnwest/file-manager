@@ -1,8 +1,7 @@
 name: CI
 
 on:
-  push:
-  # pull_request: # TODO enable
+  pull_request:
 
 jobs:
   frontend:
