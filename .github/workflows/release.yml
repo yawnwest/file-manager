@@ -21,11 +21,13 @@ jobs:
           - os: ubuntu-latest
             args: ""
             rust-targets: ""
+    permissions:
+      contents: write
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           run_install: true
 
