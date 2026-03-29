@@ -18,7 +18,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "version": "node scripts/version.mjs"
+    "version": "node scripts/version.mjs",
+    "icons": "tauri icon assets/icon.png && rm -rf src-tauri/icons/android src-tauri/icons/ios"
   },
   "lint-staged": {
     "*.{ts,svelte,svelte.ts,js,json,md,yml,html,css}": "prettier --write"
