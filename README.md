@@ -43,4 +43,4 @@ pnpm tauri dev
 
 ## License
 
-MIT
+MIT @ yawn west

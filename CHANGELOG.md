@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Empty directory remover
+
 ## [0.1.0] - 2014-07-10
 
 ### Added
