@@ -12,6 +12,6 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/dependency-review-action@v4
         with:
-          show-openssf-scorecard: false
-          fail-on-severity: high
+          # show-openssf-scorecard: false
+          # fail-on-severity: high
           retry-on-snapshot-warnings: true
