@@ -35,14 +35,28 @@
   {/snippet}
 
   {#snippet tableHead()}
-    <th>Folder name</th>
+    <th>Folder path</th>
+    <th>Error</th>
   {/snippet}
 
   {#snippet tableBody()}
-    {#each cleaner.emptyFolders as folder (folder)}
-      <tr>
-        <td>{folder}</td>
+    {#each cleaner.emptyFolders as folder (folder.path)}
+      <tr class:failed={folder.deleteError}>
+        <td>{folder.path}</td>
+        <td>
+          {#if folder.deleteError}<span class="error">{folder.deleteError}</span>{/if}
+        </td>
       </tr>
     {/each}
   {/snippet}
 </ViewLayout>
+
+<style>
+  :global(tr.failed td) {
+    background-color: #fff0f0;
+  }
+
+  .error {
+    color: red;
+  }
+</style>
