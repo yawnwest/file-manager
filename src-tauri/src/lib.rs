@@ -94,7 +94,12 @@ pub fn run() {
             for item in menu.items()? {
                 if let MenuItemKind::Submenu(sub) = item {
                     if sub.text()? == "Help" {
-                        sub.append(&MenuItem::new(app, "There is no help :(", false, None::<&str>)?)?;
+                        sub.append(&MenuItem::new(
+                            app,
+                            "There is no help :(",
+                            false,
+                            None::<&str>,
+                        )?)?;
                         break;
                     }
                 }
