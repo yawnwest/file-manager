@@ -2,6 +2,7 @@
   import { confirm } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
   import { check } from "@tauri-apps/plugin-updater";
+  import { relaunch } from "@tauri-apps/plugin-process";
 
   onMount(async () => {
     try {
@@ -12,6 +13,7 @@
         });
         if (install) {
           await update.downloadAndInstall();
+          await relaunch();
         }
       }
     } catch (e) {
