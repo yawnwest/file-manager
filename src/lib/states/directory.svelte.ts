@@ -1,17 +1,6 @@
 import { readDir, rename } from "@tauri-apps/plugin-fs";
 import { File } from "$lib/states/file.svelte";
-
-const SYSTEM_FILES = new Set([
-  // macOS
-  ".DS_Store",
-  ".localized",
-  ".Spotlight-V100",
-  ".fseventsd",
-  ".Trashes",
-  // Windows
-  "Thumbs.db",
-  "desktop.ini",
-]);
+import { SYSTEM_FILES } from "$lib/constants";
 
 export class Directory {
   // Path
