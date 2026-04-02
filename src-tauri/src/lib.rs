@@ -14,9 +14,7 @@ struct DirEntry {
 #[tauri::command]
 fn remove_dir(path: String) -> Result<(), String> {
     let home = std::env::var("HOME").map_err(|e| e.to_string())?;
-    let canonical = Path::new(&path)
-        .canonicalize()
-        .map_err(|e| e.to_string())?;
+    let canonical = Path::new(&path).canonicalize().map_err(|e| e.to_string())?;
     if !canonical.starts_with(&home) {
         return Err("Path is outside home directory".to_string());
     }
@@ -26,9 +24,7 @@ fn remove_dir(path: String) -> Result<(), String> {
 #[tauri::command]
 fn read_dir(path: String) -> Result<Vec<DirEntry>, String> {
     let home = std::env::var("HOME").map_err(|e| e.to_string())?;
-    let canonical = Path::new(&path)
-        .canonicalize()
-        .map_err(|e| e.to_string())?;
+    let canonical = Path::new(&path).canonicalize().map_err(|e| e.to_string())?;
     if !canonical.starts_with(&home) {
         return Err("Path is outside home directory".to_string());
     }
