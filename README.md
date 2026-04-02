@@ -4,12 +4,25 @@ A desktop file batch-renaming tool.
 
 ## Features
 
-- Browse directories via dialog or manual path entry
+- Browse folders via dialog or manual path entry
 - Filter files by name pattern
 - Match files using regex capture groups
 - Rename files using a pattern with group references (`$<groupName>`)
 - Insert captured groups into the rename pattern with one click
+- Remove empty folders
 - Auto-update on launch
+
+## Installation
+
+### macOS
+
+Download the `.dmg` from the [latest release](../../releases/latest), open it, and drag the app to your Applications folder.
+
+Since the app is not code-signed, macOS may show a "damaged" error. To fix this, run:
+
+```sh
+xattr -cr /Applications/File\ Manager.app
+```
 
 ## Development
 
@@ -31,4 +44,4 @@ pnpm tauri dev
 
 ## License
 
-MIT
+MIT @ yawn west

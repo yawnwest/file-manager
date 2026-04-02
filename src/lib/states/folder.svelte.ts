@@ -1,19 +1,8 @@
 import { readDir, rename } from "@tauri-apps/plugin-fs";
 import { File } from "$lib/states/file.svelte";
+import { SYSTEM_FILES } from "$lib/constants";
 
-const SYSTEM_FILES = new Set([
-  // macOS
-  ".DS_Store",
-  ".localized",
-  ".Spotlight-V100",
-  ".fseventsd",
-  ".Trashes",
-  // Windows
-  "Thumbs.db",
-  "desktop.ini",
-]);
-
-export class Directory {
+export class Folder {
   // Path
   path = $state("");
   private _pathError = $state("");
