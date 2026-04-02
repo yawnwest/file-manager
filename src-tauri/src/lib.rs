@@ -68,8 +68,8 @@ fn cargo_deps() -> Vec<String> {
             } else if let Some(pos) = rest.find("version") {
                 let after =
                     rest[pos + 7..].trim_start_matches(|c: char| c.is_whitespace() || c == '=');
-                if after.starts_with('"') {
-                    after[1..].split('"').next().unwrap_or("?").to_string()
+                if let Some(stripped) = after.strip_prefix('"') {
+                    stripped.split('"').next().unwrap_or("?").to_string()
                 } else {
                     "?".to_string()
                 }
