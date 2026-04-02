@@ -33,9 +33,9 @@ console.log(`Bumped to ${version}`);
 
 if (isLifecycleHook) {
   // Stage the extra files so npm includes them in its version commit
-  execSync(`git add src-tauri/Cargo.toml src-tauri/tauri.conf.json`);
+  execSync(`git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json`);
 } else {
-  execSync(`git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json`);
+  execSync(`git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json`);
   execSync(`git commit -m "chore: bump version to ${version}"`);
 
   console.log(`Commit created. After merging to main:`);
