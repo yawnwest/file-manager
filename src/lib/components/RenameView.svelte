@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { Directory } from "$lib/states/directory.svelte";
+  import { Folder } from "$lib/states/folder.svelte";
   import { open, confirm } from "@tauri-apps/plugin-dialog";
   import { onDestroy } from "svelte";
   import ViewLayout from "./ViewLayout.svelte";
 
-  const directory = new Directory();
-  onDestroy(() => directory.cleanup());
+  const folder = new Folder();
+  onDestroy(() => folder.cleanup());
 
-  async function openDir() {
+  async function openFolder() {
     const selected = await open({ directory: true });
     if (selected !== null) {
-      directory.path = selected;
+      folder.path = selected;
     }
   }
 
@@ -18,10 +18,10 @@
 
   function addGroupToNewName(groupName: string) {
     const insertion = `$<${groupName}>`;
-    const start = newNameInput.selectionStart ?? directory.newFileNamePattern.length;
+    const start = newNameInput.selectionStart ?? folder.newFileNamePattern.length;
     const end = newNameInput.selectionEnd ?? start;
-    directory.newFileNamePattern =
-      directory.newFileNamePattern.slice(0, start) + insertion + directory.newFileNamePattern.slice(end);
+    folder.newFileNamePattern =
+      folder.newFileNamePattern.slice(0, start) + insertion + folder.newFileNamePattern.slice(end);
     const newPos = start + insertion.length;
     requestAnimationFrame(() => {
       newNameInput.setSelectionRange(newPos, newPos);
@@ -30,27 +30,27 @@
   }
 
   const renameCount = $derived(
-    directory.files.filter((f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name).length,
+    folder.files.filter((f) => !f.ignore && !f.matchError && f.newName && f.newName !== f.name).length,
   );
 </script>
 
 <ViewLayout
-  bind:path={directory.path}
-  pathIsValid={directory.pathIsValid}
-  pathError={directory.pathError}
-  onopen={openDir}
-  onreload={() => directory.reload()}
-  fileCount="{renameCount} / {directory.files.length}"
+  bind:path={folder.path}
+  pathIsValid={folder.pathIsValid}
+  pathError={folder.pathError}
+  onopen={openFolder}
+  onreload={() => folder.reload()}
+  fileCount="{renameCount} / {folder.files.length}"
 >
   {#snippet configExtra()}
     <div class="field">
       <label for="filter-input">Filter pattern</label>
-      <input id="filter-input" placeholder="Filter files by name..." bind:value={directory.fileFilterPattern} />
+      <input id="filter-input" placeholder="Filter files by name..." bind:value={folder.fileFilterPattern} />
     </div>
 
     <div class="field">
       <label for="match-input">Match pattern</label>
-      <input id="match-input" placeholder="Enter file name pattern..." bind:value={directory.fileNamePattern} />
+      <input id="match-input" placeholder="Enter file name pattern..." bind:value={folder.fileNamePattern} />
     </div>
 
     <div class="field">
@@ -58,13 +58,13 @@
       <input
         id="rename-input"
         placeholder="Enter new name pattern..."
-        bind:value={directory.newFileNamePattern}
+        bind:value={folder.newFileNamePattern}
         bind:this={newNameInput}
       />
-      {#if directory.groupNames.length > 0}
+      {#if folder.groupNames.length > 0}
         <div class="groups">
           <span class="groups-label">Insert group:</span>
-          {#each directory.groupNames as groupName (groupName)}
+          {#each folder.groupNames as groupName (groupName)}
             <button class="group-btn" onclick={() => addGroupToNewName(groupName)}>{groupName}</button>
           {/each}
         </div>
@@ -74,13 +74,13 @@
 
   {#snippet options()}
     <label>
-      <input type="checkbox" bind:checked={directory.ignoreSystemFiles} />
+      <input type="checkbox" bind:checked={folder.ignoreSystemFiles} />
       Ignore system files
     </label>
     <button
       onclick={async () => {
         if (await confirm(`Rename ${renameCount} file(s)?`)) {
-          await directory.renameAll();
+          await folder.renameAll();
         }
       }}>Rename all</button
     >
@@ -95,7 +95,7 @@
   {/snippet}
 
   {#snippet tableBody()}
-    {#each directory.files as file (file.name)}
+    {#each folder.files as file (file.name)}
       <tr class:failed={file.renameError}>
         <td><input type="checkbox" bind:checked={file.ignore} /></td>
         <td>{file.name}</td>

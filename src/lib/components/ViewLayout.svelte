@@ -30,9 +30,9 @@
 
 <section class="config">
   <div class="field">
-    <label for="dir-input">Directory</label>
-    <div class="dir-row">
-      <input id="dir-input" placeholder="Enter a directory..." bind:value={path} class:invalid={!pathIsValid} />
+    <label for="folder-input">Folder</label>
+    <div class="folder-row">
+      <input id="folder-input" placeholder="Enter a folder path..." bind:value={path} class:invalid={!pathIsValid} />
       <button onclick={onopen}>Open …</button>
       <button onclick={onreload}>Reload</button>
     </div>
@@ -85,12 +85,12 @@
     font-size: 0.85rem;
   }
 
-  .dir-row {
+  .folder-row {
     display: flex;
     gap: 0.5rem;
   }
 
-  .dir-row input {
+  .folder-row input {
     flex: 1;
   }
 

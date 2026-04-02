@@ -2,7 +2,7 @@ import { readDir, rename } from "@tauri-apps/plugin-fs";
 import { File } from "$lib/states/file.svelte";
 import { SYSTEM_FILES } from "$lib/constants";
 
-export class Directory {
+export class Folder {
   // Path
   path = $state("");
   private _pathError = $state("");

@@ -4,7 +4,7 @@ A desktop file batch-renaming tool.
 
 ## Features
 
-- Browse directories via dialog or manual path entry
+- Browse folders via dialog or manual path entry
 - Filter files by name pattern
 - Match files using regex capture groups
 - Rename files using a pattern with group references (`$<groupName>`)
