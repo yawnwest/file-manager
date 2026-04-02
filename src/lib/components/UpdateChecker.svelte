@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { confirm } from "@tauri-apps/plugin-dialog";
+  import { confirm, message } from "@tauri-apps/plugin-dialog";
   import { onMount } from "svelte";
   import { check } from "@tauri-apps/plugin-updater";
-  import { relaunch } from "@tauri-apps/plugin-process";
 
   onMount(async () => {
     try {
@@ -12,8 +11,10 @@
           title: "Update available",
         });
         if (install) {
+          message("The update is being installed. The app will restart shortly.", {
+            title: "Installing update...",
+          });
           await update.downloadAndInstall();
-          await relaunch();
         }
       }
     } catch (e) {
