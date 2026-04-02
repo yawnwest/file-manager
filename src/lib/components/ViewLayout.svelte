@@ -8,6 +8,7 @@
     onopen: () => void;
     onreload: () => void;
     fileCount: string;
+    lockPath?: boolean;
     configExtra?: Snippet;
     options: Snippet;
     tableHead: Snippet;
@@ -21,6 +22,7 @@
     onopen,
     onreload,
     fileCount,
+    lockPath = false,
     configExtra,
     options,
     tableHead,
@@ -32,8 +34,14 @@
   <div class="field">
     <label for="folder-input">Folder</label>
     <div class="folder-row">
-      <input id="folder-input" placeholder="Enter a folder path..." bind:value={path} class:invalid={!pathIsValid} />
-      <button onclick={onopen}>Open …</button>
+      <input
+        id="folder-input"
+        placeholder="Enter a folder path..."
+        bind:value={path}
+        class:invalid={!pathIsValid}
+        disabled={lockPath}
+      />
+      <button onclick={onopen} disabled={lockPath}>Open …</button>
       <button onclick={onreload}>Reload</button>
     </div>
     <p class="error">{pathError}</p>

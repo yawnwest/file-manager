@@ -21,11 +21,22 @@
   pathError={cleaner.pathError}
   onopen={openDir}
   onreload={() => cleaner.reload()}
-  fileCount="{cleaner.emptyFolders.length} empty folder(s)"
+  lockPath={cleaner.deleting}
+  fileCount={cleaner.scanning
+    ? "Scanning…"
+    : cleaner.deleting
+      ? "Deleting…"
+      : [
+          `${cleaner.emptyFolders.length} empty folder(s)`,
+          cleaner.skippedFolders.length > 0 ? `${cleaner.skippedFolders.length} inaccessible folder(s) skipped` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")}
 >
   {#snippet options()}
     <span></span>
     <button
+      disabled={cleaner.scanning || cleaner.deleting}
       onclick={async () => {
         if (await confirm(`Delete ${cleaner.emptyFolders.length} empty folder(s)?`)) {
           await cleaner.deleteAll();
@@ -48,6 +59,12 @@
         </td>
       </tr>
     {/each}
+    {#each cleaner.skippedFolders as folder (folder.path)}
+      <tr class="skipped">
+        <td>{folder.path}</td>
+        <td><span class="skipped-label">{folder.reason}</span></td>
+      </tr>
+    {/each}
   {/snippet}
 </ViewLayout>
 
@@ -58,5 +75,13 @@
 
   .error {
     color: red;
+  }
+
+  :global(tr.skipped td) {
+    color: #999;
+  }
+
+  .skipped-label {
+    font-style: italic;
   }
 </style>

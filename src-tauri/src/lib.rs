@@ -1,4 +1,50 @@
+use serde::Serialize;
+use std::path::Path;
 use tauri::menu::{AboutMetadataBuilder, Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
+
+#[derive(Serialize)]
+struct DirEntry {
+    name: String,
+    #[serde(rename = "isDirectory")]
+    is_directory: bool,
+    #[serde(rename = "isFile")]
+    is_file: bool,
+}
+
+#[tauri::command]
+fn remove_dir(path: String) -> Result<(), String> {
+    let home = std::env::var("HOME").map_err(|e| e.to_string())?;
+    let canonical = Path::new(&path)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    if !canonical.starts_with(&home) {
+        return Err("Path is outside home directory".to_string());
+    }
+    std::fs::remove_dir_all(&canonical).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn read_dir(path: String) -> Result<Vec<DirEntry>, String> {
+    let home = std::env::var("HOME").map_err(|e| e.to_string())?;
+    let canonical = Path::new(&path)
+        .canonicalize()
+        .map_err(|e| e.to_string())?;
+    if !canonical.starts_with(&home) {
+        return Err("Path is outside home directory".to_string());
+    }
+    std::fs::read_dir(&canonical)
+        .map_err(|e| e.to_string())?
+        .map(|entry| {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let metadata = entry.metadata().map_err(|e| e.to_string())?;
+            Ok(DirEntry {
+                name: entry.file_name().to_string_lossy().into_owned(),
+                is_directory: metadata.is_dir(),
+                is_file: metadata.is_file(),
+            })
+        })
+        .collect()
+}
 
 fn cargo_deps() -> Vec<String> {
     let content = include_str!("../Cargo.toml");
@@ -111,7 +157,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![read_dir, remove_dir])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

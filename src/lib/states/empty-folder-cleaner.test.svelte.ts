@@ -1,15 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { DirEntry } from "@tauri-apps/plugin-fs";
 import { EmptyFolderCleaner } from "./empty-folder-cleaner.svelte.js";
 
-vi.mock("@tauri-apps/plugin-fs", () => ({
-  readDir: vi.fn(),
-  remove: vi.fn(),
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
 }));
 
-const { readDir, remove } = await import("@tauri-apps/plugin-fs");
-const mockReadDir = vi.mocked(readDir);
-const mockRemove = vi.mocked(remove);
+const { invoke } = await import("@tauri-apps/api/core");
+const mockInvoke = vi.mocked(invoke);
+
+type Entry = { name: string; isDirectory?: boolean; isFile?: boolean };
+
+function mockReadDir(...results: Entry[][]) {
+  for (const result of results) {
+    mockInvoke.mockResolvedValueOnce(result);
+  }
+}
+
+function mockRemoveDir() {
+  mockInvoke.mockResolvedValueOnce(undefined);
+}
 
 async function flushPromises(ticks = 10) {
   for (let i = 0; i < ticks; i++) await Promise.resolve();
@@ -38,21 +47,19 @@ describe("EmptyFolderCleaner", () => {
   });
 
   it("scans after 300ms debounce", async () => {
-    mockReadDir.mockResolvedValue([]);
+    mockReadDir([]);
 
     cleaner.path = "/base";
     await Promise.resolve();
-    expect(mockReadDir).not.toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalled();
     vi.advanceTimersByTime(300);
     await flushPromises();
 
-    expect(mockReadDir).toHaveBeenCalledWith("/base");
+    expect(mockInvoke).toHaveBeenCalledWith("read_dir", { path: "/base" });
   });
 
   it("detects a directly empty subfolder", async () => {
-    mockReadDir
-      .mockResolvedValueOnce([{ name: "empty-dir", isDirectory: true }] as unknown as DirEntry[])
-      .mockResolvedValueOnce([]);
+    mockReadDir([{ name: "empty-dir", isDirectory: true }], []);
 
     cleaner.path = "/base";
     await Promise.resolve();
@@ -64,9 +71,7 @@ describe("EmptyFolderCleaner", () => {
   });
 
   it("does not include folders that contain files", async () => {
-    mockReadDir
-      .mockResolvedValueOnce([{ name: "non-empty", isDirectory: true }] as unknown as DirEntry[])
-      .mockResolvedValueOnce([{ name: "file.txt", isFile: true }] as unknown as DirEntry[]);
+    mockReadDir([{ name: "non-empty", isDirectory: true }], [{ name: "file.txt", isFile: true }]);
 
     cleaner.path = "/base";
     await Promise.resolve();
@@ -77,12 +82,13 @@ describe("EmptyFolderCleaner", () => {
   });
 
   it("treats folders containing only system files as empty", async () => {
-    mockReadDir
-      .mockResolvedValueOnce([{ name: "sys-only", isDirectory: true }] as unknown as DirEntry[])
-      .mockResolvedValueOnce([
+    mockReadDir(
+      [{ name: "sys-only", isDirectory: true }],
+      [
         { name: ".DS_Store", isFile: true },
         { name: "Thumbs.db", isFile: true },
-      ] as unknown as DirEntry[]);
+      ],
+    );
 
     cleaner.path = "/base";
     await Promise.resolve();
@@ -92,8 +98,8 @@ describe("EmptyFolderCleaner", () => {
     expect(cleaner.emptyFolders.map((f) => f.path)).toEqual(["sys-only"]);
   });
 
-  it("sets error and clears folders on readDir failure", async () => {
-    mockReadDir.mockRejectedValue(new Error("Permission denied"));
+  it("sets error and clears folders on read_dir failure", async () => {
+    mockInvoke.mockRejectedValueOnce(new Error("Permission denied"));
 
     cleaner.path = "/base";
     await Promise.resolve();
@@ -105,9 +111,7 @@ describe("EmptyFolderCleaner", () => {
   });
 
   it("clears folders and error when path is reset to empty", async () => {
-    mockReadDir
-      .mockResolvedValueOnce([{ name: "empty-dir", isDirectory: true }] as unknown as DirEntry[])
-      .mockResolvedValueOnce([]);
+    mockReadDir([{ name: "empty-dir", isDirectory: true }], []);
 
     cleaner.path = "/base";
     await Promise.resolve();
@@ -122,11 +126,28 @@ describe("EmptyFolderCleaner", () => {
     expect(cleaner.pathError).toBe("");
   });
 
+  it("skips inaccessible subfolders and records them", async () => {
+    mockReadDir(
+      [
+        { name: "accessible", isDirectory: true },
+        { name: "restricted", isDirectory: true },
+      ],
+      [],
+    );
+    mockInvoke.mockRejectedValueOnce(new Error("Permission denied"));
+
+    cleaner.path = "/base";
+    await Promise.resolve();
+    vi.advanceTimersByTime(300);
+    await flushPromises();
+
+    expect(cleaner.emptyFolders.map((f) => f.path)).toEqual(["accessible"]);
+    expect(cleaner.skippedFolders).toEqual([{ path: "restricted", reason: "Error: Permission denied" }]);
+  });
+
   describe("deleteAll", () => {
     async function scanOneEmptyFolder() {
-      mockReadDir
-        .mockResolvedValueOnce([{ name: "empty-dir", isDirectory: true }] as unknown as DirEntry[])
-        .mockResolvedValueOnce([]);
+      mockReadDir([{ name: "empty-dir", isDirectory: true }], []);
 
       cleaner.path = "/base";
       await Promise.resolve();
@@ -139,41 +160,41 @@ describe("EmptyFolderCleaner", () => {
 
     it("deletes the folder when it is still empty", async () => {
       await scanOneEmptyFolder();
-      mockReadDir.mockResolvedValue([]);
-      mockRemove.mockResolvedValue(undefined);
+      mockReadDir([]);
+      mockRemoveDir();
 
       await cleaner.deleteAll();
 
-      expect(mockReadDir).toHaveBeenCalledWith("/base/empty-dir");
-      expect(mockRemove).toHaveBeenCalledWith("/base/empty-dir", { recursive: true });
+      expect(mockInvoke).toHaveBeenCalledWith("read_dir", { path: "/base/empty-dir" });
+      expect(mockInvoke).toHaveBeenCalledWith("remove_dir", { path: "/base/empty-dir" });
       expect(cleaner.emptyFolders).toHaveLength(0);
     });
 
     it("deletes the folder when it contains only system files", async () => {
       await scanOneEmptyFolder();
-      mockReadDir.mockResolvedValue([{ name: ".DS_Store", isFile: true }] as unknown as DirEntry[]);
-      mockRemove.mockResolvedValue(undefined);
+      mockReadDir([{ name: ".DS_Store", isFile: true }]);
+      mockRemoveDir();
 
       await cleaner.deleteAll();
 
-      expect(mockRemove).toHaveBeenCalledWith("/base/empty-dir", { recursive: true });
+      expect(mockInvoke).toHaveBeenCalledWith("remove_dir", { path: "/base/empty-dir" });
       expect(cleaner.emptyFolders).toHaveLength(0);
     });
 
     it("skips deletion and sets error when folder is no longer empty", async () => {
       await scanOneEmptyFolder();
-      mockReadDir.mockResolvedValue([{ name: "new-file.txt", isFile: true }] as unknown as DirEntry[]);
+      mockReadDir([{ name: "new-file.txt", isFile: true }]);
 
       await cleaner.deleteAll();
 
-      expect(mockRemove).not.toHaveBeenCalled();
+      expect(mockInvoke).not.toHaveBeenCalledWith("remove_dir", expect.anything());
       expect(cleaner.emptyFolders[0].deleteError).toBe("Directory is no longer empty");
     });
 
-    it("sets deleteError when remove fails", async () => {
+    it("sets deleteError when remove_dir fails", async () => {
       await scanOneEmptyFolder();
-      mockReadDir.mockResolvedValue([]);
-      mockRemove.mockRejectedValue(new Error("Permission denied"));
+      mockReadDir([]);
+      mockInvoke.mockRejectedValueOnce(new Error("Permission denied"));
 
       await cleaner.deleteAll();
 
@@ -181,13 +202,14 @@ describe("EmptyFolderCleaner", () => {
     });
 
     it("processes all folders even if one fails the pre-deletion check", async () => {
-      mockReadDir
-        .mockResolvedValueOnce([
+      mockReadDir(
+        [
           { name: "dir-a", isDirectory: true },
           { name: "dir-b", isDirectory: true },
-        ] as unknown as DirEntry[])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+        ],
+        [],
+        [],
+      );
 
       cleaner.path = "/base";
       await Promise.resolve();
@@ -197,17 +219,15 @@ describe("EmptyFolderCleaner", () => {
       expect(cleaner.emptyFolders).toHaveLength(2);
       vi.clearAllMocks();
 
-      mockReadDir
-        .mockResolvedValueOnce([{ name: "new-file.txt", isFile: true }] as unknown as DirEntry[])
-        .mockResolvedValueOnce([]);
-      mockRemove.mockResolvedValue(undefined);
+      mockReadDir([{ name: "new-file.txt", isFile: true }], []);
+      mockRemoveDir();
 
       await cleaner.deleteAll();
 
       expect(cleaner.emptyFolders).toHaveLength(1);
       expect(cleaner.emptyFolders[0].path).toBe("dir-a");
       expect(cleaner.emptyFolders[0].deleteError).toBe("Directory is no longer empty");
-      expect(mockRemove).toHaveBeenCalledTimes(1);
+      expect(mockInvoke).toHaveBeenCalledWith("remove_dir", { path: "/base/dir-b" });
     });
   });
 });
