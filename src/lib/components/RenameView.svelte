@@ -34,81 +34,83 @@
   );
 </script>
 
-<ViewLayout
-  bind:path={folder.path}
-  pathIsValid={folder.pathIsValid}
-  pathError={folder.pathError}
-  onopen={openFolder}
-  onreload={() => folder.reload()}
-  fileCount="{renameCount} / {folder.files.length}"
->
-  {#snippet configExtra()}
-    <div class="field">
-      <label for="filter-input">Filter pattern</label>
-      <input id="filter-input" placeholder="Filter files by name..." bind:value={folder.fileFilterPattern} />
-    </div>
+<div class="rename-view">
+  <ViewLayout
+    bind:path={folder.path}
+    pathIsValid={folder.pathIsValid}
+    pathError={folder.pathError}
+    onopen={openFolder}
+    onreload={() => folder.reload()}
+    fileCount="{renameCount} / {folder.files.length}"
+  >
+    {#snippet configExtra()}
+      <div class="field">
+        <label for="filter-input">Filter pattern</label>
+        <input id="filter-input" placeholder="Filter files by name..." bind:value={folder.fileFilterPattern} />
+      </div>
 
-    <div class="field">
-      <label for="match-input">Match pattern</label>
-      <input id="match-input" placeholder="Enter file name pattern..." bind:value={folder.fileNamePattern} />
-    </div>
+      <div class="field">
+        <label for="match-input">Match pattern</label>
+        <input id="match-input" placeholder="Enter file name pattern..." bind:value={folder.fileNamePattern} />
+      </div>
 
-    <div class="field">
-      <label for="rename-input">Rename pattern</label>
-      <input
-        id="rename-input"
-        placeholder="Enter new name pattern..."
-        bind:value={folder.newFileNamePattern}
-        bind:this={newNameInput}
-      />
-      {#if folder.groupNames.length > 0}
-        <div class="groups">
-          <span class="groups-label">Insert group:</span>
-          {#each folder.groupNames as groupName (groupName)}
-            <button class="group-btn" onclick={() => addGroupToNewName(groupName)}>{groupName}</button>
-          {/each}
-        </div>
-      {/if}
-    </div>
-  {/snippet}
+      <div class="field">
+        <label for="rename-input">Rename pattern</label>
+        <input
+          id="rename-input"
+          placeholder="Enter new name pattern..."
+          bind:value={folder.newFileNamePattern}
+          bind:this={newNameInput}
+        />
+        {#if folder.groupNames.length > 0}
+          <div class="groups">
+            <span class="groups-label">Insert group:</span>
+            {#each folder.groupNames as groupName (groupName)}
+              <button class="group-btn" onclick={() => addGroupToNewName(groupName)}>{groupName}</button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/snippet}
 
-  {#snippet options()}
-    <label>
-      <input type="checkbox" bind:checked={folder.ignoreSystemFiles} />
-      Ignore system files
-    </label>
-    <button
-      onclick={async () => {
-        if (await confirm(`Rename ${renameCount} file(s)?`)) {
-          await folder.renameAll();
-        }
-      }}>Rename all</button
-    >
-  {/snippet}
+    {#snippet options()}
+      <label>
+        <input type="checkbox" bind:checked={folder.ignoreSystemFiles} />
+        Ignore system files
+      </label>
+      <button
+        onclick={async () => {
+          if (await confirm(`Rename ${renameCount} file(s)?`)) {
+            await folder.renameAll();
+          }
+        }}>Rename all</button
+      >
+    {/snippet}
 
-  {#snippet tableHead()}
-    <th>Ignore</th>
-    <th>Current name</th>
-    <th>New name</th>
-    <th>Override pattern</th>
-    <th>Error</th>
-  {/snippet}
+    {#snippet tableHead()}
+      <th>Ignore</th>
+      <th>Current name</th>
+      <th>New name</th>
+      <th>Override pattern</th>
+      <th>Error</th>
+    {/snippet}
 
-  {#snippet tableBody()}
-    {#each folder.files as file (file.name)}
-      <tr class:failed={file.renameError}>
-        <td><input type="checkbox" bind:checked={file.ignore} /></td>
-        <td>{file.name}</td>
-        <td>{file.newName}</td>
-        <td><input placeholder="Override pattern..." bind:value={file.overridePattern} /></td>
-        <td>
-          {#if file.renameError}<span class="error">{file.renameError}</span>
-          {:else if file.matchError}<span class="error">Match pattern does not match</span>{/if}
-        </td>
-      </tr>
-    {/each}
-  {/snippet}
-</ViewLayout>
+    {#snippet tableBody()}
+      {#each folder.files as file (file.name)}
+        <tr class:failed={file.renameError}>
+          <td><input type="checkbox" bind:checked={file.ignore} /></td>
+          <td>{file.name}</td>
+          <td>{file.newName}</td>
+          <td><input placeholder="Override pattern..." bind:value={file.overridePattern} /></td>
+          <td>
+            {#if file.renameError}<span class="error">{file.renameError}</span>
+            {:else if file.matchError}<span class="error">Match pattern does not match</span>{/if}
+          </td>
+        </tr>
+      {/each}
+    {/snippet}
+  </ViewLayout>
+</div>
 
 <style>
   .field {
@@ -138,24 +140,24 @@
     padding: 0.1rem 0.4rem;
   }
 
-  :global(th:nth-child(1)),
-  :global(td:nth-child(1)) {
+  .rename-view :global(th:nth-child(1)),
+  .rename-view :global(td:nth-child(1)) {
     width: 4rem;
   }
-  :global(th:nth-child(2)),
-  :global(td:nth-child(2)) {
+  .rename-view :global(th:nth-child(2)),
+  .rename-view :global(td:nth-child(2)) {
     width: 20%;
   }
-  :global(th:nth-child(3)),
-  :global(td:nth-child(3)) {
+  .rename-view :global(th:nth-child(3)),
+  .rename-view :global(td:nth-child(3)) {
     width: 20%;
   }
-  :global(th:nth-child(4)),
-  :global(td:nth-child(4)) {
+  .rename-view :global(th:nth-child(4)),
+  .rename-view :global(td:nth-child(4)) {
     width: 15%;
   }
 
-  :global(td:nth-child(4) input) {
+  .rename-view :global(td:nth-child(4) input) {
     width: 100%;
   }
 

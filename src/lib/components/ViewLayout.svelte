@@ -124,14 +124,14 @@
     border-collapse: collapse;
   }
 
-  :global(th) {
+  table :global(th) {
     text-align: left;
     font-size: 0.85rem;
     padding: 0.25rem 0.5rem;
     border-bottom: 1px solid var(--color-border);
   }
 
-  :global(td) {
+  table :global(td) {
     padding: 0.2rem 0.5rem;
     vertical-align: middle;
   }
