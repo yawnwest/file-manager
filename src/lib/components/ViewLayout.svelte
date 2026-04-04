@@ -68,7 +68,7 @@
 
 <style>
   .error {
-    color: red;
+    color: var(--color-error);
   }
 
   .invalid {
@@ -116,7 +116,7 @@
   .file-count {
     margin: 0 0 0.5rem;
     font-size: 0.85rem;
-    color: #666;
+    color: var(--color-text-muted);
   }
 
   table {
@@ -128,7 +128,7 @@
     text-align: left;
     font-size: 0.85rem;
     padding: 0.25rem 0.5rem;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid var(--color-border);
   }
 
   :global(td) {

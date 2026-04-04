@@ -27,9 +27,33 @@
 </main>
 
 <style>
+  :global(:root) {
+    --color-bg: #ffffff;
+    --color-text: #000000;
+    --color-border: #ccc;
+    --color-text-muted: #666;
+    --color-text-faint: #999;
+    --color-error-bg: #fff0f0;
+    --color-error: red;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :global(:root) {
+      --color-bg: #1e1e1e;
+      --color-text: #e0e0e0;
+      --color-border: #444;
+      --color-text-muted: #aaa;
+      --color-text-faint: #777;
+      --color-error-bg: #3d1515;
+      --color-error: #ff6b6b;
+    }
+  }
+
   :global(body) {
     margin: 0;
     padding: 0;
+    background-color: var(--color-bg);
+    color: var(--color-text);
   }
 
   main {
@@ -40,7 +64,7 @@
 
   .tabs {
     display: flex;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid var(--color-border);
     padding: 0 1rem;
   }
 

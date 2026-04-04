@@ -70,15 +70,15 @@
 
 <style>
   :global(tr.failed td) {
-    background-color: #fff0f0;
+    background-color: var(--color-error-bg);
   }
 
   .error {
-    color: red;
+    color: var(--color-error);
   }
 
   :global(tr.skipped td) {
-    color: #999;
+    color: var(--color-text-faint);
   }
 
   .skipped-label {
