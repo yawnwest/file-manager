@@ -166,7 +166,7 @@ describe("EmptyFolderCleaner", () => {
       await cleaner.deleteAll();
 
       expect(mockInvoke).toHaveBeenCalledWith("read_dir", { path: "/base/empty-dir" });
-      expect(mockInvoke).toHaveBeenCalledWith("remove_dir", { path: "/base/empty-dir" });
+      expect(mockInvoke).toHaveBeenCalledWith("remove_empty_dir", { path: "/base/empty-dir" });
       expect(cleaner.emptyFolders).toHaveLength(0);
     });
 
@@ -177,7 +177,7 @@ describe("EmptyFolderCleaner", () => {
 
       await cleaner.deleteAll();
 
-      expect(mockInvoke).toHaveBeenCalledWith("remove_dir", { path: "/base/empty-dir" });
+      expect(mockInvoke).toHaveBeenCalledWith("remove_empty_dir", { path: "/base/empty-dir" });
       expect(cleaner.emptyFolders).toHaveLength(0);
     });
 
@@ -187,11 +187,11 @@ describe("EmptyFolderCleaner", () => {
 
       await cleaner.deleteAll();
 
-      expect(mockInvoke).not.toHaveBeenCalledWith("remove_dir", expect.anything());
+      expect(mockInvoke).not.toHaveBeenCalledWith("remove_empty_dir", expect.anything());
       expect(cleaner.emptyFolders[0].deleteError).toBe("Directory is no longer empty");
     });
 
-    it("sets deleteError when remove_dir fails", async () => {
+    it("sets deleteError when remove_empty_dir fails", async () => {
       await scanOneEmptyFolder();
       mockReadDir([]);
       mockInvoke.mockRejectedValueOnce(new Error("Permission denied"));
@@ -227,7 +227,7 @@ describe("EmptyFolderCleaner", () => {
       expect(cleaner.emptyFolders).toHaveLength(1);
       expect(cleaner.emptyFolders[0].path).toBe("dir-a");
       expect(cleaner.emptyFolders[0].deleteError).toBe("Directory is no longer empty");
-      expect(mockInvoke).toHaveBeenCalledWith("remove_dir", { path: "/base/dir-b" });
+      expect(mockInvoke).toHaveBeenCalledWith("remove_empty_dir", { path: "/base/dir-b" });
     });
   });
 });
