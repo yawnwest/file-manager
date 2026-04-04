@@ -1,9 +1,11 @@
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+
 export class Zoom {
   value = $state(1);
 
   constructor() {
     $effect(() => {
-      document.documentElement.style.zoom = String(this.value);
+      getCurrentWebviewWindow().setZoom(this.value).catch(console.error);
       document.addEventListener("wheel", this.handleWheel, { passive: false });
       return () => document.removeEventListener("wheel", this.handleWheel);
     });
