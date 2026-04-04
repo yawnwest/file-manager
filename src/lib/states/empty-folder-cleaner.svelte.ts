@@ -1,9 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { SYSTEM_FILES } from "$lib/constants";
 
-interface EmptyFolder {
+export type FolderStatus = "deleted" | "failed" | "skipped";
+
+export interface Folder {
   path: string;
-  deleteError: string;
+  status?: FolderStatus;
+  statusText: string;
 }
 
 export class EmptyFolderCleaner {
@@ -11,8 +14,9 @@ export class EmptyFolderCleaner {
   private _pathError = $state("");
   readonly pathIsValid = $derived(!this._pathError);
 
-  private _emptyFolders: EmptyFolder[] = $state([]);
-  private _skippedFolders: { path: string; reason: string }[] = $state([]);
+  private _folders: Folder[] = $state([]);
+  scanChecked = $state(0);
+  private _scanCount = 0;
   scanning = $state(false);
   deleting = $state(false);
 
@@ -25,12 +29,8 @@ export class EmptyFolderCleaner {
     return this._pathError;
   }
 
-  get emptyFolders() {
-    return this._emptyFolders;
-  }
-
-  get skippedFolders() {
-    return this._skippedFolders;
+  get folders() {
+    return this._folders;
   }
 
   constructor() {
@@ -49,30 +49,39 @@ export class EmptyFolderCleaner {
   async deleteAll() {
     this.deleting = true;
     try {
-      for (const folder of this._emptyFolders) {
+      for (const folder of this._folders) {
+        if (folder.status === "skipped") continue;
         try {
           const fullPath = `${this.path}/${folder.path}`;
           const realEntries = await this._getRealEntries(fullPath);
           if (realEntries.length > 0) {
-            folder.deleteError = "Directory is no longer empty";
+            folder.status = "failed";
+            folder.statusText = "Directory is no longer empty";
             continue;
           }
           await invoke("remove_empty_dir", { path: fullPath });
-          folder.deleteError = "";
+          folder.status = "deleted";
+          folder.statusText = "Deletion successful";
         } catch (e) {
-          folder.deleteError = String(e);
+          folder.status = "failed";
+          folder.statusText = String(e);
         }
       }
-
-      this._emptyFolders = this._emptyFolders.filter((f) => f.deleteError !== "");
     } finally {
       this.deleting = false;
     }
   }
 
+  private async _getRealEntries(fullPath: string) {
+    const entries = await invoke<Array<{ name: string; isDirectory: boolean; isFile: boolean }>>("read_dir", {
+      path: fullPath,
+    });
+    return entries.filter((e) => !SYSTEM_FILES.has(e.name));
+  }
+
   private _scan() {
     if (!this.path) {
-      this._emptyFolders = [];
+      this._folders = [];
       this._pathError = "";
       return;
     }
@@ -86,13 +95,13 @@ export class EmptyFolderCleaner {
       this.scanning = true;
 
       try {
-        const emptyFolders: EmptyFolder[] = [];
-        this._skippedFolders = [];
-        await this._scanDir("", currentId, emptyFolders);
+        const folders: Folder[] = [];
+        this._scanCount = 0;
+        await this._scanDir("", currentId, folders);
 
         if (currentId !== this.requestId) return;
 
-        this._emptyFolders = emptyFolders.sort((a, b) => {
+        this._folders = folders.sort((a, b) => {
           const depthDiff = b.path.split("/").length - a.path.split("/").length;
           return depthDiff !== 0 ? depthDiff : a.path.localeCompare(b.path);
         });
@@ -100,7 +109,7 @@ export class EmptyFolderCleaner {
       } catch (e) {
         if (currentId !== this.requestId) return;
 
-        this._emptyFolders = [];
+        this._folders = [];
         this._pathError = String(e);
       } finally {
         if (currentId === this.requestId) this.scanning = false;
@@ -108,26 +117,27 @@ export class EmptyFolderCleaner {
     }, 300);
   }
 
-  private async _getRealEntries(fullPath: string) {
-    const entries = await invoke<Array<{ name: string; isDirectory: boolean; isFile: boolean }>>("read_dir", {
-      path: fullPath,
-    });
-    return entries.filter((e) => !SYSTEM_FILES.has(e.name));
-  }
-
-  private async _scanDir(relPath: string, requestId: number, result: EmptyFolder[]): Promise<boolean> {
+  private async _scanDir(relPath: string, requestId: number, result: Folder[]): Promise<boolean> {
     if (requestId !== this.requestId) return false;
+
+    if (++this._scanCount % 50 === 0) {
+      this.scanChecked = this._scanCount;
+      this._folders = [...result];
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (requestId !== this.requestId) return false;
+    }
 
     const fullPath = relPath ? `${this.path}/${relPath}` : this.path;
     const realEntries = await this._getRealEntries(fullPath);
 
     if (realEntries.length === 0) {
-      if (relPath) result.push({ path: relPath, deleteError: "" });
+      if (relPath) result.push({ path: relPath, statusText: "" });
       return true;
     }
 
     let allEmpty = true;
     for (const entry of realEntries) {
+      if (requestId !== this.requestId) return false;
       if (!entry.isDirectory) {
         allEmpty = false;
         continue;
@@ -138,13 +148,13 @@ export class EmptyFolderCleaner {
         childEmpty = await this._scanDir(childRelPath, requestId, result);
       } catch (e) {
         childEmpty = false;
-        this._skippedFolders.push({ path: childRelPath, reason: String(e) });
+        result.push({ path: childRelPath, status: "skipped", statusText: String(e) });
       }
       if (!childEmpty) allEmpty = false;
     }
 
     if (allEmpty && relPath) {
-      result.push({ path: relPath, deleteError: "" });
+      result.push({ path: relPath, statusText: "" });
     }
     return allEmpty;
   }

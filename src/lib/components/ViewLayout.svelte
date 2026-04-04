@@ -7,7 +7,7 @@
     pathError: string;
     onopen: () => void;
     onreload: () => void;
-    fileCount: string;
+    changeCount: string;
     lockPath?: boolean;
     configExtra?: Snippet;
     options: Snippet;
@@ -21,7 +21,7 @@
     pathError,
     onopen,
     onreload,
-    fileCount,
+    changeCount,
     lockPath = false,
     configExtra,
     options,
@@ -31,9 +31,9 @@
 </script>
 
 <section class="config">
-  <div class="field">
-    <label for="folder-input">Folder</label>
-    <div class="folder-row">
+  <div class="group">
+    <div class="field">
+      <label for="folder-input">Folder</label>
       <input
         id="folder-input"
         placeholder="Enter a folder path..."
@@ -42,20 +42,20 @@
         disabled={lockPath}
       />
       <button onclick={onopen} disabled={lockPath}>Open …</button>
-      <button onclick={onreload}>Reload</button>
+      <button onclick={onreload} disabled={lockPath}>↺</button>
     </div>
-    <p class="error">{pathError}</p>
+    <p class="error path-error">{pathError}</p>
   </div>
 
   {@render configExtra?.()}
 
   <div class="field options-row">
+    <p class="file-count">{changeCount}</p>
     {@render options()}
   </div>
 </section>
 
 <section class="files">
-  <p class="file-count">{fileCount}</p>
   <table>
     <thead>
       <tr>{@render tableHead()}</tr>
@@ -67,66 +67,91 @@
 </section>
 
 <style>
-  .error {
-    color: var(--color-destructive);
-  }
-
-  .invalid {
-    outline: 2px solid red;
-  }
-
+  /* Config section */
   .config {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
     padding: 1rem;
+  }
+
+  .group {
+    display: flex;
+    flex-direction: column;
   }
 
   .field {
     display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   :global(.field label) {
     font-weight: bold;
-    font-size: 0.85rem;
   }
 
-  .folder-row {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .folder-row input {
+  :global(.field input) {
     flex: 1;
+  }
+
+  :global(input, select, textarea, button) {
+    font: inherit;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+  }
+
+  :global(input, select, textarea) {
+    color: var(--color-foreground);
+    background-color: var(--color-surface);
+    color-scheme: light dark;
+  }
+
+  :global(button) {
+    --btn-color: var(--color-neutral);
+    color: #ffffff;
+    background-color: var(--btn-color);
+    cursor: pointer;
+  }
+
+  :global(button:hover:not(:disabled)) {
+    background-color: color-mix(in srgb, var(--btn-color) 80%, black);
+  }
+
+  :global(button:disabled, input:disabled) {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   .options-row {
     display: flex;
     flex-direction: row;
-    align-items: center;
     justify-content: space-between;
   }
 
+  :global(.options-row button) {
+    --btn-color: var(--color-primary);
+  }
+
+  /* Files section */
   .files {
     padding: 1rem;
   }
 
   .file-count {
-    margin: 0 0 0.5rem;
+    margin: 0;
     font-size: 0.85rem;
     color: var(--color-neutral);
   }
 
   table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
   }
 
   table :global(th) {
     text-align: left;
-    font-size: 0.85rem;
     padding: 0.25rem 0.5rem;
     border-bottom: 1px solid var(--color-border);
   }
@@ -134,5 +159,37 @@
   table :global(td) {
     padding: 0.2rem 0.5rem;
     vertical-align: middle;
+    overflow: hidden;
+  }
+
+  :global(.skipped td) {
+    font-style: italic;
+    color: var(--color-neutral);
+  }
+
+  :global(.failed td) {
+    color: var(--color-destructive);
+  }
+
+  :global(.success td) {
+    color: var(--color-success);
+  }
+
+  table :global(tbody tr:nth-child(even)) {
+    background-color: color-mix(in srgb, var(--color-surface) 95%, var(--color-foreground));
+  }
+
+  /* States */
+  :global(.error) {
+    color: var(--color-destructive);
+  }
+
+  .path-error {
+    margin: 0.5rem 0 0;
+    min-height: 1.5lh;
+  }
+
+  .invalid {
+    outline: 2px solid red;
   }
 </style>

@@ -33,8 +33,9 @@
 
 <style>
   :global(:root) {
+    color-scheme: light dark;
     --color-background: #ffffff; /* page background */
-    --color-surface: #e8e8e8; /* card/panel backgrounds */
+    --color-surface: #ffffff; /* card/panel backgrounds */
     --color-foreground: #1e1e3a; /* default text */
     --color-primary: #0078f8; /* main accent, CTAs */
     --color-neutral: #888888; /* neutral actions */
@@ -51,6 +52,7 @@
       --color-surface: #1e1e3a;
       --color-foreground: #f4f4ff;
       --color-border: #888888;
+      --color-destructive: #f83800;
     }
   }
 
@@ -59,6 +61,7 @@
     padding: 0;
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: system-ui, sans-serif;
   }
 
   main {
@@ -76,6 +79,7 @@
   .tabs button {
     background: none;
     border: none;
+    border-radius: 0;
     border-bottom: 2px solid transparent;
     padding: 0.5rem 1rem;
     cursor: pointer;

@@ -15,65 +15,65 @@
   }
 </script>
 
-<ViewLayout
-  bind:path={cleaner.path}
-  pathIsValid={cleaner.pathIsValid}
-  pathError={cleaner.pathError}
-  onopen={openDir}
-  onreload={() => cleaner.reload()}
-  lockPath={cleaner.deleting}
-  fileCount={cleaner.scanning
-    ? "Scanning…"
-    : cleaner.deleting
-      ? "Deleting…"
-      : [
-          `${cleaner.emptyFolders.length} empty folder(s)`,
-          cleaner.skippedFolders.length > 0 ? `${cleaner.skippedFolders.length} inaccessible folder(s) skipped` : "",
-        ]
-          .filter(Boolean)
-          .join(", ")}
->
-  {#snippet options()}
-    <span></span>
-    <button
-      disabled={cleaner.scanning || cleaner.deleting}
-      onclick={async () => {
-        if (await confirm(`Delete ${cleaner.emptyFolders.length} empty folder(s)?`)) {
-          await cleaner.deleteAll();
-        }
-      }}>Delete all</button
-    >
-  {/snippet}
+<div class="clean-view">
+  <ViewLayout
+    bind:path={cleaner.path}
+    pathIsValid={cleaner.pathIsValid}
+    pathError={cleaner.pathError}
+    onopen={openDir}
+    onreload={() => cleaner.reload()}
+    lockPath={cleaner.deleting}
+    // TODO check if filtering so often is too expensive. Maybe counters are the better option.
+    changeCount={cleaner.scanning
+      ? `Scanning… (${cleaner.scanChecked} checked, ${cleaner.folders.filter((f) => !f.status).length} empty found)`
+      : cleaner.deleting
+        ? "Deleting…"
+        : [
+            `${cleaner.folders.filter((f) => !f.status).length} empty folder(s)`,
+            cleaner.folders.filter((f) => f.status === "skipped").length > 0
+              ? `${cleaner.folders.filter((f) => f.status === "skipped").length} inaccessible folder(s) skipped`
+              : "",
+          ]
+            .filter(Boolean)
+            .join(", ")}
+  >
+    {#snippet options()}
+      <button
+        disabled={cleaner.scanning || cleaner.deleting}
+        onclick={async () => {
+          if (await confirm(`Delete ${cleaner.folders.filter((f) => !f.status).length} empty folder(s)?`)) {
+            await cleaner.deleteAll();
+          }
+        }}>Delete all</button
+      >
+    {/snippet}
 
-  {#snippet tableHead()}
-    <th>Folder path</th>
-    <th>Error</th>
-  {/snippet}
+    {#snippet tableHead()}
+      <th>Folder path</th>
+      <th>Status</th>
+    {/snippet}
 
-  {#snippet tableBody()}
-    {#each cleaner.emptyFolders as folder (folder.path)}
-      <tr class:failed={folder.deleteError}>
-        <td>{folder.path}</td>
-        <td>
-          {#if folder.deleteError}<span class="error">{folder.deleteError}</span>{/if}
-        </td>
-      </tr>
-    {/each}
-    {#each cleaner.skippedFolders as folder (folder.path)}
-      <tr class="skipped">
-        <td>{folder.path}</td>
-        <td><span class="skipped-label">{folder.reason}</span></td>
-      </tr>
-    {/each}
-  {/snippet}
-</ViewLayout>
+    {#snippet tableBody()}
+      {#each cleaner.folders as folder (folder.path)}
+        <tr
+          class:failed={folder.status === "failed"}
+          class:skipped={folder.status === "skipped"}
+          class:success={folder.status === "deleted"}
+        >
+          <td>{folder.path}</td>
+          <td>
+            {#if folder.status}{folder.statusText}{/if}
+          </td>
+        </tr>
+      {/each}
+    {/snippet}
+  </ViewLayout>
+</div>
 
 <style>
-  .error {
-    color: var(--color-destructive);
-  }
-
-  .skipped-label {
-    font-style: italic;
+  :global(.clean-view th:nth-child(1)),
+  :global(.clean-view td:nth-child(1)) {
+    width: 66%;
+    overflow-wrap: anywhere;
   }
 </style>

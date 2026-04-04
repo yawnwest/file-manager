@@ -42,7 +42,7 @@ describe("EmptyFolderCleaner", () => {
   });
 
   it("has empty folders and no error initially", () => {
-    expect(cleaner.emptyFolders).toEqual([]);
+    expect(cleaner.folders).toEqual([]);
     expect(cleaner.pathError).toBe("");
   });
 
@@ -66,7 +66,7 @@ describe("EmptyFolderCleaner", () => {
     vi.advanceTimersByTime(300);
     await flushPromises();
 
-    expect(cleaner.emptyFolders.map((f) => f.path)).toEqual(["empty-dir"]);
+    expect(cleaner.folders.map((f) => f.path)).toEqual(["empty-dir"]);
     expect(cleaner.pathError).toBe("");
   });
 
@@ -78,7 +78,7 @@ describe("EmptyFolderCleaner", () => {
     vi.advanceTimersByTime(300);
     await flushPromises();
 
-    expect(cleaner.emptyFolders).toEqual([]);
+    expect(cleaner.folders).toEqual([]);
   });
 
   it("treats folders containing only system files as empty", async () => {
@@ -95,7 +95,7 @@ describe("EmptyFolderCleaner", () => {
     vi.advanceTimersByTime(300);
     await flushPromises();
 
-    expect(cleaner.emptyFolders.map((f) => f.path)).toEqual(["sys-only"]);
+    expect(cleaner.folders.map((f) => f.path)).toEqual(["sys-only"]);
   });
 
   it("sets error and clears folders on read_dir failure", async () => {
@@ -106,7 +106,7 @@ describe("EmptyFolderCleaner", () => {
     vi.advanceTimersByTime(300);
     await flushPromises(3);
 
-    expect(cleaner.emptyFolders).toEqual([]);
+    expect(cleaner.folders).toEqual([]);
     expect(cleaner.pathError).toBe("Error: Permission denied");
   });
 
@@ -117,12 +117,12 @@ describe("EmptyFolderCleaner", () => {
     await Promise.resolve();
     vi.advanceTimersByTime(300);
     await flushPromises();
-    expect(cleaner.emptyFolders).toHaveLength(1);
+    expect(cleaner.folders).toHaveLength(1);
 
     cleaner.path = "";
     await Promise.resolve();
 
-    expect(cleaner.emptyFolders).toEqual([]);
+    expect(cleaner.folders).toEqual([]);
     expect(cleaner.pathError).toBe("");
   });
 
@@ -141,8 +141,10 @@ describe("EmptyFolderCleaner", () => {
     vi.advanceTimersByTime(300);
     await flushPromises();
 
-    expect(cleaner.emptyFolders.map((f) => f.path)).toEqual(["accessible"]);
-    expect(cleaner.skippedFolders).toEqual([{ path: "restricted", reason: "Error: Permission denied" }]);
+    expect(cleaner.folders.filter((f) => !f.status).map((f) => f.path)).toEqual(["accessible"]);
+    expect(cleaner.folders.filter((f) => f.status === "skipped")).toEqual([
+      { path: "restricted", status: "skipped", statusText: "Error: Permission denied" },
+    ]);
   });
 
   describe("deleteAll", () => {
@@ -154,7 +156,7 @@ describe("EmptyFolderCleaner", () => {
       vi.advanceTimersByTime(300);
       await flushPromises();
 
-      expect(cleaner.emptyFolders).toHaveLength(1);
+      expect(cleaner.folders).toHaveLength(1);
       vi.clearAllMocks();
     }
 
@@ -167,7 +169,7 @@ describe("EmptyFolderCleaner", () => {
 
       expect(mockInvoke).toHaveBeenCalledWith("read_dir", { path: "/base/empty-dir" });
       expect(mockInvoke).toHaveBeenCalledWith("remove_empty_dir", { path: "/base/empty-dir" });
-      expect(cleaner.emptyFolders).toHaveLength(0);
+      expect(cleaner.folders.filter((f) => !f.status)).toHaveLength(0);
     });
 
     it("deletes the folder when it contains only system files", async () => {
@@ -178,7 +180,7 @@ describe("EmptyFolderCleaner", () => {
       await cleaner.deleteAll();
 
       expect(mockInvoke).toHaveBeenCalledWith("remove_empty_dir", { path: "/base/empty-dir" });
-      expect(cleaner.emptyFolders).toHaveLength(0);
+      expect(cleaner.folders.filter((f) => !f.status)).toHaveLength(0);
     });
 
     it("skips deletion and sets error when folder is no longer empty", async () => {
@@ -188,17 +190,19 @@ describe("EmptyFolderCleaner", () => {
       await cleaner.deleteAll();
 
       expect(mockInvoke).not.toHaveBeenCalledWith("remove_empty_dir", expect.anything());
-      expect(cleaner.emptyFolders[0].deleteError).toBe("Directory is no longer empty");
+      expect(cleaner.folders[0].status).toBe("failed");
+      expect(cleaner.folders[0].statusText).toBe("Directory is no longer empty");
     });
 
-    it("sets deleteError when remove_empty_dir fails", async () => {
+    it("sets statusText when remove_empty_dir fails", async () => {
       await scanOneEmptyFolder();
       mockReadDir([]);
       mockInvoke.mockRejectedValueOnce(new Error("Permission denied"));
 
       await cleaner.deleteAll();
 
-      expect(cleaner.emptyFolders[0].deleteError).toBe("Error: Permission denied");
+      expect(cleaner.folders[0].status).toBe("failed");
+      expect(cleaner.folders[0].statusText).toBe("Error: Permission denied");
     });
 
     it("processes all folders even if one fails the pre-deletion check", async () => {
@@ -216,7 +220,7 @@ describe("EmptyFolderCleaner", () => {
       vi.advanceTimersByTime(300);
       await flushPromises(12);
 
-      expect(cleaner.emptyFolders).toHaveLength(2);
+      expect(cleaner.folders).toHaveLength(2);
       vi.clearAllMocks();
 
       mockReadDir([{ name: "new-file.txt", isFile: true }], []);
@@ -224,9 +228,10 @@ describe("EmptyFolderCleaner", () => {
 
       await cleaner.deleteAll();
 
-      expect(cleaner.emptyFolders).toHaveLength(1);
-      expect(cleaner.emptyFolders[0].path).toBe("dir-a");
-      expect(cleaner.emptyFolders[0].deleteError).toBe("Directory is no longer empty");
+      const failed = cleaner.folders.filter((f) => f.status === "failed");
+      expect(failed).toHaveLength(1);
+      expect(failed[0].path).toBe("dir-a");
+      expect(failed[0].statusText).toBe("Directory is no longer empty");
       expect(mockInvoke).toHaveBeenCalledWith("remove_empty_dir", { path: "/base/dir-b" });
     });
   });

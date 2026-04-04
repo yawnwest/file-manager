@@ -41,7 +41,7 @@
     pathError={folder.pathError}
     onopen={openFolder}
     onreload={() => folder.reload()}
-    fileCount="{renameCount} / {folder.files.length}"
+    changeCount="{renameCount} / {folder.files.length}"
   >
     {#snippet configExtra()}
       <div class="field">
@@ -113,10 +113,15 @@
 </div>
 
 <style>
-  .field {
+  /* .field {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  .field :global(label) {
+    font-weight: bold;
+    font-size: 0.85rem;
   }
 
   .groups {
@@ -163,5 +168,5 @@
 
   .error {
     color: var(--color-destructive);
-  }
+  } */
 </style>
