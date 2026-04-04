@@ -57,7 +57,7 @@ export class EmptyFolderCleaner {
             folder.deleteError = "Directory is no longer empty";
             continue;
           }
-          await invoke("remove_dir", { path: fullPath });
+          await invoke("remove_empty_dir", { path: fullPath });
           folder.deleteError = "";
         } catch (e) {
           folder.deleteError = String(e);
