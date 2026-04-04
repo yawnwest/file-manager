@@ -1,5 +1,7 @@
 mod commands;
 
+include!(concat!(env!("OUT_DIR"), "/dep_licenses.rs"));
+
 use tauri::menu::{AboutMetadataBuilder, Menu, MenuItemKind, PredefinedMenuItem};
 pub fn run() {
     tauri::Builder::default()
@@ -118,6 +120,17 @@ fn tauri_product_name() -> Option<String> {
 
 fn cargo_deps() -> Vec<String> {
     parse_cargo_deps(include_str!("../Cargo.toml"))
+        .into_iter()
+        .map(|dep| {
+            let name = dep.split_whitespace().next().unwrap_or("");
+            let license = CARGO_LICENSES
+                .iter()
+                .find(|(n, _)| *n == name)
+                .map(|(_, l)| *l)
+                .unwrap_or("Unknown");
+            format!("{dep} ({license})")
+        })
+        .collect()
 }
 
 fn parse_cargo_deps(content: &str) -> Vec<String> {
@@ -161,6 +174,17 @@ fn parse_cargo_deps(content: &str) -> Vec<String> {
 
 fn npm_deps() -> Vec<String> {
     parse_npm_deps(include_str!("../../package.json"))
+        .into_iter()
+        .map(|dep| {
+            let name = dep.split_whitespace().next().unwrap_or("");
+            let license = NPM_LICENSES
+                .iter()
+                .find(|(n, _)| *n == name)
+                .map(|(_, l)| *l)
+                .unwrap_or("Unknown");
+            format!("{dep} ({license})")
+        })
+        .collect()
 }
 
 fn parse_npm_deps(content: &str) -> Vec<String> {
