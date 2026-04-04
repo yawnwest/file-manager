@@ -1,6 +1,6 @@
 mod commands;
 
-use tauri::menu::{AboutMetadataBuilder, Menu, PredefinedMenuItem};
+use tauri::menu::{AboutMetadataBuilder, Menu, MenuItemKind, PredefinedMenuItem};
 pub fn run() {
     tauri::Builder::default()
         .setup(setup)
@@ -38,7 +38,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .map(|img| tauri::image::Image::new_owned(img.rgba().to_vec(), img.width(), img.height()));
     let about = PredefinedMenuItem::about(
         app,
-        None,
+        tauri_product_name()
+            .map(|n| format!("About {n}"))
+            .as_deref(),
         Some(
             AboutMetadataBuilder::new()
                 .name(tauri_product_name())
@@ -85,18 +87,20 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     {
         let menu = Menu::default(app.handle())?;
 
-        // On macOS, remove the default About and add our custom one
+        // On macOS, replace the default About (always first item) with our custom one
         if let Some(MenuItemKind::Submenu(app_submenu)) = menu.items()?.into_iter().next() {
-            let items = app_submenu.items()?;
-            for (idx, menu_item) in items.iter().enumerate() {
-                if let MenuItemKind::MenuItem(mi) = menu_item {
-                    if mi.text()? == "About" {
-                        app_submenu.remove_at(idx)?;
-                        break;
-                    }
+            app_submenu.remove_at(0)?;
+            app_submenu.insert(&about, 0)?;
+        }
+
+        // Remove the Help menu
+        for item in menu.items()? {
+            if let MenuItemKind::Submenu(sub) = item {
+                if sub.text()? == "Help" {
+                    menu.remove(&sub)?;
+                    break;
                 }
             }
-            app_submenu.insert(&about, 0)?;
         }
 
         app.set_menu(menu)?;
