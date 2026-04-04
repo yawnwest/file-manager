@@ -17,6 +17,11 @@
   <nav class="tabs">
     <button class:active={activeTab === "rename"} onclick={() => (activeTab = "rename")}>Rename files</button>
     <button class:active={activeTab === "clean"} onclick={() => (activeTab = "clean")}>Delete empty folders</button>
+    {#if zoom.value !== 1}
+      <button class="zoom-reset" onclick={() => (zoom.value = 1)}>
+        {Math.round(zoom.value * 100)}%
+      </button>
+    {/if}
   </nav>
 
   {#if activeTab === "rename"}
@@ -82,5 +87,11 @@
   .tabs button.active {
     border-bottom-color: currentColor;
     font-weight: bold;
+  }
+
+  .zoom-reset {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--color-neutral);
   }
 </style>
