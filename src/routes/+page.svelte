@@ -28,32 +28,32 @@
 
 <style>
   :global(:root) {
-    --color-bg: #ffffff;
-    --color-text: #000000;
-    --color-border: #ccc;
-    --color-text-muted: #666;
-    --color-text-faint: #999;
-    --color-error-bg: #fff0f0;
-    --color-error: red;
+    --color-background: #ffffff; /* page background */
+    --color-surface: #e8e8e8; /* card/panel backgrounds */
+    --color-foreground: #1e1e3a; /* default text */
+    --color-primary: #0078f8; /* main accent, CTAs */
+    --color-neutral: #888888; /* neutral actions */
+    --color-success: #00a800; /* success */
+    --color-warning: #f8b800; /* warning */
+    --color-destructive: #d82800; /* destructive actions */
+    --color-ring: #60b4fc; /* focus rings */
+    --color-border: #222222; /* borders, scrollbars and dividers */
   }
 
   @media (prefers-color-scheme: dark) {
     :global(:root) {
-      --color-bg: #1e1e1e;
-      --color-text: #e0e0e0;
-      --color-border: #444;
-      --color-text-muted: #aaa;
-      --color-text-faint: #777;
-      --color-error-bg: #3d1515;
-      --color-error: #ff6b6b;
+      --color-background: #0f0f1e;
+      --color-surface: #1e1e3a;
+      --color-foreground: #f4f4ff;
+      --color-border: #888888;
     }
   }
 
   :global(body) {
     margin: 0;
     padding: 0;
-    background-color: var(--color-bg);
-    color: var(--color-text);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
   }
 
   main {
@@ -76,6 +76,7 @@
     cursor: pointer;
     font-size: 0.9rem;
     margin-bottom: -1px;
+    color: var(--color-foreground);
   }
 
   .tabs button.active {

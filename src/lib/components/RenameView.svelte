@@ -131,7 +131,7 @@
   }
 
   .groups-label {
-    color: var(--color-text-muted);
+    color: var(--color-neutral);
   }
 
   .group-btn {
@@ -159,11 +159,7 @@
     width: 100%;
   }
 
-  :global(tr.failed td) {
-    background-color: var(--color-error-bg);
-  }
-
   .error {
-    color: var(--color-error);
+    color: var(--color-destructive);
   }
 </style>

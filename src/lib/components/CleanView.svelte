@@ -69,16 +69,8 @@
 </ViewLayout>
 
 <style>
-  :global(tr.failed td) {
-    background-color: var(--color-error-bg);
-  }
-
   .error {
-    color: var(--color-error);
-  }
-
-  :global(tr.skipped td) {
-    color: var(--color-text-faint);
+    color: var(--color-destructive);
   }
 
   .skipped-label {

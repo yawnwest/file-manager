@@ -68,7 +68,7 @@
 
 <style>
   .error {
-    color: var(--color-error);
+    color: var(--color-destructive);
   }
 
   .invalid {
@@ -116,7 +116,7 @@
   .file-count {
     margin: 0 0 0.5rem;
     font-size: 0.85rem;
-    color: var(--color-text-muted);
+    color: var(--color-neutral);
   }
 
   table {
