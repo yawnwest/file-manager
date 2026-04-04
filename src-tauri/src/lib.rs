@@ -1,7 +1,6 @@
 mod commands;
 
 use tauri::menu::{AboutMetadataBuilder, Menu, PredefinedMenuItem};
-
 pub fn run() {
     tauri::Builder::default()
         .setup(setup)
@@ -34,7 +33,6 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let version_info = format!("Version {}\n\n{}", env!("CARGO_PKG_VERSION"), credits);
-
     let icon = app
         .default_window_icon()
         .map(|img| tauri::image::Image::new_owned(img.rgba().to_vec(), img.width(), img.height()));
@@ -103,7 +101,6 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
         app.set_menu(menu)?;
     }
-
     Ok(())
 }
 
