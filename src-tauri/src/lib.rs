@@ -108,6 +108,18 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+fn tauri_product_name() -> Option<String> {
+    let json: serde_json::Value =
+        serde_json::from_str(include_str!("../tauri.conf.json")).unwrap_or_default();
+    json.get("productName")
+        .and_then(|v| v.as_str())
+        .map(str::to_string)
+}
+
+fn cargo_deps() -> Vec<String> {
+    parse_cargo_deps(include_str!("../Cargo.toml"))
+}
+
 fn parse_cargo_deps(content: &str) -> Vec<String> {
     let mut in_deps = false;
     let mut deps = Vec::new();
@@ -147,16 +159,8 @@ fn parse_cargo_deps(content: &str) -> Vec<String> {
     deps
 }
 
-fn tauri_product_name() -> Option<String> {
-    let json: serde_json::Value =
-        serde_json::from_str(include_str!("../tauri.conf.json")).unwrap_or_default();
-    json.get("productName")
-        .and_then(|v| v.as_str())
-        .map(str::to_string)
-}
-
-fn cargo_deps() -> Vec<String> {
-    parse_cargo_deps(include_str!("../Cargo.toml"))
+fn npm_deps() -> Vec<String> {
+    parse_npm_deps(include_str!("../../package.json"))
 }
 
 fn parse_npm_deps(content: &str) -> Vec<String> {
@@ -169,10 +173,6 @@ fn parse_npm_deps(content: &str) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-fn npm_deps() -> Vec<String> {
-    parse_npm_deps(include_str!("../../package.json"))
 }
 
 #[cfg(test)]
