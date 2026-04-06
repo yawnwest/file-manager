@@ -23,16 +23,13 @@
     onopen={openDir}
     onreload={() => cleaner.reload()}
     lockPath={cleaner.deleting}
-    // TODO check if filtering so often is too expensive. Maybe counters are the better option.
     changeCount={cleaner.scanning
-      ? `Scanning… (${cleaner.scanChecked} checked, ${cleaner.folders.filter((f) => !f.status).length} empty found)`
+      ? `Scanning… (${cleaner.scanChecked} checked, ${cleaner.emptyCount} empty found)`
       : cleaner.deleting
         ? "Deleting…"
         : [
-            `${cleaner.folders.filter((f) => !f.status).length} empty folder(s)`,
-            cleaner.folders.filter((f) => f.status === "skipped").length > 0
-              ? `${cleaner.folders.filter((f) => f.status === "skipped").length} inaccessible folder(s) skipped`
-              : "",
+            `${cleaner.emptyCount} empty folder(s)`,
+            cleaner.skippedCount > 0 ? `${cleaner.skippedCount} inaccessible folder(s) skipped` : "",
           ]
             .filter(Boolean)
             .join(", ")}
@@ -41,7 +38,7 @@
       <button
         disabled={cleaner.scanning || cleaner.deleting}
         onclick={async () => {
-          if (await confirm(`Delete ${cleaner.folders.filter((f) => !f.status).length} empty folder(s)?`)) {
+          if (await confirm(`Delete ${cleaner.emptyCount} empty folder(s)?`)) {
             await cleaner.deleteAll();
           }
         }}>Delete all</button

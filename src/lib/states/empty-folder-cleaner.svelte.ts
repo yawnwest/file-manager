@@ -15,6 +15,8 @@ export class EmptyFolderCleaner {
   readonly pathIsValid = $derived(!this._pathError);
 
   private _folders: Folder[] = $state([]);
+  emptyCount = $state(0);
+  skippedCount = $state(0);
   scanChecked = $state(0);
   private _scanCount = 0;
   scanning = $state(false);
@@ -97,6 +99,8 @@ export class EmptyFolderCleaner {
       try {
         const folders: Folder[] = [];
         this._scanCount = 0;
+        this.emptyCount = 0;
+        this.skippedCount = 0;
         await this._scanDir("", currentId, folders);
 
         if (currentId !== this.requestId) return;
@@ -131,7 +135,10 @@ export class EmptyFolderCleaner {
     const realEntries = await this._getRealEntries(fullPath);
 
     if (realEntries.length === 0) {
-      if (relPath) result.push({ path: relPath, statusText: "" });
+      if (relPath) {
+        result.push({ path: relPath, statusText: "" });
+        this.emptyCount++;
+      }
       return true;
     }
 
@@ -149,12 +156,14 @@ export class EmptyFolderCleaner {
       } catch (e) {
         childEmpty = false;
         result.push({ path: childRelPath, status: "skipped", statusText: String(e) });
+        this.skippedCount++;
       }
       if (!childEmpty) allEmpty = false;
     }
 
     if (allEmpty && relPath) {
       result.push({ path: relPath, statusText: "" });
+      this.emptyCount++;
     }
     return allEmpty;
   }

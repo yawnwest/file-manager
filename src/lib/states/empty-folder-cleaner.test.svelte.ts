@@ -47,6 +47,8 @@ describe("EmptyFolderCleaner", () => {
     expect(cleaner.folders).toEqual([]);
     expect(cleaner.pathError).toBe("");
     expect(cleaner.pathIsValid).toBe(true);
+    expect(cleaner.emptyCount).toBe(0);
+    expect(cleaner.skippedCount).toBe(0);
   });
 
   // ── Debounce & path changes ──────────────────────────────────────────────────
@@ -162,6 +164,26 @@ describe("EmptyFolderCleaner", () => {
     await flushPromises();
 
     expect(cleaner.folders.map((f) => f.path)).toEqual(["parent/child", "parent"]);
+    expect(cleaner.emptyCount).toBe(2);
+  });
+
+  it("resets emptyCount and skippedCount when a new scan starts", async () => {
+    mockReadDir([{ name: "empty-dir", isDirectory: true }], []);
+
+    cleaner.path = "/base";
+    await Promise.resolve();
+    vi.advanceTimersByTime(300);
+    await flushPromises();
+    expect(cleaner.emptyCount).toBe(1);
+
+    mockReadDir([]);
+    cleaner.path = "/other";
+    await Promise.resolve();
+    vi.advanceTimersByTime(300);
+    await flushPromises();
+
+    expect(cleaner.emptyCount).toBe(0);
+    expect(cleaner.skippedCount).toBe(0);
   });
 
   it("sorts results deepest first, then alphabetically within the same depth", async () => {
@@ -202,6 +224,8 @@ describe("EmptyFolderCleaner", () => {
     expect(cleaner.folders.filter((f) => f.status === "skipped")).toEqual([
       { path: "restricted", status: "skipped", statusText: "Error: Permission denied" },
     ]);
+    expect(cleaner.emptyCount).toBe(1);
+    expect(cleaner.skippedCount).toBe(1);
   });
 
   // ── Scan state & errors ──────────────────────────────────────────────────────
