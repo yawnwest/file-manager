@@ -21,6 +21,7 @@ export class EmptyFolderCleaner {
   private _scanCount = 0;
   scanning = $state(false);
   deleting = $state(false);
+  deleted = $state(false);
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private requestId = 0;
@@ -71,6 +72,7 @@ export class EmptyFolderCleaner {
       }
     } finally {
       this.deleting = false;
+      this.deleted = true;
     }
   }
 
@@ -95,6 +97,7 @@ export class EmptyFolderCleaner {
     this.debounceTimer = setTimeout(async () => {
       const currentId = ++this.requestId;
       this.scanning = true;
+      this.deleted = false;
 
       try {
         const folders: Folder[] = [];

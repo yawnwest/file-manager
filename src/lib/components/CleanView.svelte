@@ -36,7 +36,7 @@
   >
     {#snippet options()}
       <button
-        disabled={cleaner.scanning || cleaner.deleting}
+        disabled={cleaner.scanning || cleaner.deleting || cleaner.deleted}
         onclick={async () => {
           if (await confirm(`Delete ${cleaner.emptyCount} empty folder(s)?`)) {
             await cleaner.deleteAll();

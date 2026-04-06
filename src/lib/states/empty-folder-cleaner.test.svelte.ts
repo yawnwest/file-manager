@@ -291,6 +291,45 @@ describe("EmptyFolderCleaner", () => {
       expect(cleaner.deleting).toBe(false);
     });
 
+    it("sets deleted to true after deleteAll completes", async () => {
+      await scanOneEmptyFolder();
+      mockReadDir([]);
+      mockRemoveDir();
+
+      expect(cleaner.deleted).toBe(false);
+      await cleaner.deleteAll();
+      expect(cleaner.deleted).toBe(true);
+    });
+
+    it("resets deleted to false when a new scan starts", async () => {
+      await scanOneEmptyFolder();
+      mockReadDir([]);
+      mockRemoveDir();
+      await cleaner.deleteAll();
+      expect(cleaner.deleted).toBe(true);
+
+      mockReadDir([]);
+      cleaner.reload();
+      vi.advanceTimersByTime(300);
+
+      expect(cleaner.deleted).toBe(false);
+    });
+
+    it("resets deleted to false when the path changes", async () => {
+      await scanOneEmptyFolder();
+      mockReadDir([]);
+      mockRemoveDir();
+      await cleaner.deleteAll();
+      expect(cleaner.deleted).toBe(true);
+
+      mockReadDir([]);
+      cleaner.path = "/other";
+      await Promise.resolve();
+      vi.advanceTimersByTime(300);
+
+      expect(cleaner.deleted).toBe(false);
+    });
+
     it("skips folders with status skipped", async () => {
       mockReadDir(
         [
