@@ -41,46 +41,48 @@
     pathError={folder.pathError}
     onopen={openFolder}
     onreload={() => folder.reload()}
-    changeCount="{renameCount} / {folder.files.length}"
+    changeCount={folder.files.length === 0
+      ? "No files loaded"
+      : `Renaming ${renameCount} of ${folder.files.length} ${folder.files.length === 1 ? "file" : "files"}`}
   >
     {#snippet configExtra()}
-      <div class="field">
-        <label for="filter-input">Filter pattern</label>
-        <input id="filter-input" placeholder="Filter files by name..." bind:value={folder.fileFilterPattern} />
-      </div>
+      <label for="filter-input">Filter pattern</label>
+      <input id="filter-input" placeholder="Filter files by name..." bind:value={folder.fileFilterPattern} />
 
-      <div class="field">
-        <label for="match-input">Match pattern</label>
-        <input id="match-input" placeholder="Enter file name pattern..." bind:value={folder.fileNamePattern} />
-      </div>
+      <label for="match-input">Match pattern</label>
+      <input id="match-input" placeholder="Enter file name pattern..." bind:value={folder.fileNamePattern} />
 
-      <div class="field">
-        <label for="rename-input">Rename pattern</label>
-        <input
-          id="rename-input"
-          placeholder="Enter new name pattern..."
-          bind:value={folder.newFileNamePattern}
-          bind:this={newNameInput}
-        />
-        {#if folder.groupNames.length > 0}
-          <div class="groups">
-            <span class="groups-label">Insert group:</span>
-            {#each folder.groupNames as groupName (groupName)}
-              <button class="group-btn" onclick={() => addGroupToNewName(groupName)}>{groupName}</button>
-            {/each}
-          </div>
-        {/if}
-      </div>
+      <label for="rename-input">Rename pattern</label>
+      <input
+        id="rename-input"
+        placeholder="Enter new name pattern..."
+        bind:value={folder.newFileNamePattern}
+        bind:this={newNameInput}
+      />
+
+      {#if folder.groupNames.length > 0}
+        <span aria-hidden="true"></span>
+        <div class="tags">
+          {#each folder.groupNames as groupName (groupName)}
+            <span
+              class="tag"
+              role="button"
+              tabindex="0"
+              onclick={() => addGroupToNewName(groupName)}
+              onkeydown={(e) => (e.key === "Enter" || e.key === " ") && addGroupToNewName(groupName)}>{groupName}</span
+            >
+          {/each}
+        </div>
+      {/if}
+
+      <label for="ignore-system">Ignore system files</label>
+      <input id="ignore-system" type="checkbox" bind:checked={folder.ignoreSystemFiles} />
     {/snippet}
 
     {#snippet options()}
-      <label>
-        <input type="checkbox" bind:checked={folder.ignoreSystemFiles} />
-        Ignore system files
-      </label>
       <button
         onclick={async () => {
-          if (await confirm(`Rename ${renameCount} file(s)?`)) {
+          if (await confirm(`Rename ${renameCount} ${renameCount === 1 ? "file" : "files"}?`)) {
             await folder.renameAll();
           }
         }}>Rename all</button
@@ -113,60 +115,49 @@
 </div>
 
 <style>
-  /* .field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .field :global(label) {
-    font-weight: bold;
-    font-size: 0.85rem;
-  }
-
-  .groups {
+  .tags {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     gap: 0.25rem;
-    margin-top: 0.25rem;
   }
 
-  .groups-label,
-  .group-btn {
+  .tag {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
     font-size: 0.8rem;
+    background-color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    color: #ffffff;
+    cursor: pointer;
+    user-select: none;
   }
 
-  .groups-label {
-    color: var(--color-neutral);
+  .tag:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 80%, black);
+    border-color: color-mix(in srgb, var(--color-primary) 80%, black);
   }
 
-  .group-btn {
-    padding: 0.1rem 0.4rem;
+  :global(.rename-view th:nth-child(1)),
+  :global(.rename-view td:nth-child(1)) {
+    width: 3rem;
+    text-align: center;
   }
 
-  .rename-view :global(th:nth-child(1)),
-  .rename-view :global(td:nth-child(1)) {
-    width: 4rem;
+  :global(.rename-view th:nth-child(2)),
+  :global(.rename-view td:nth-child(2)),
+  :global(.rename-view th:nth-child(3)),
+  :global(.rename-view td:nth-child(3)) {
+    width: 28%;
+    overflow-wrap: anywhere;
   }
-  .rename-view :global(th:nth-child(2)),
-  .rename-view :global(td:nth-child(2)) {
+
+  :global(.rename-view th:nth-child(4)),
+  :global(.rename-view td:nth-child(4)) {
     width: 20%;
   }
-  .rename-view :global(th:nth-child(3)),
-  .rename-view :global(td:nth-child(3)) {
-    width: 20%;
-  }
-  .rename-view :global(th:nth-child(4)),
-  .rename-view :global(td:nth-child(4)) {
-    width: 15%;
-  }
 
-  .rename-view :global(td:nth-child(4) input) {
+  :global(.rename-view td:nth-child(4) input) {
     width: 100%;
   }
-
-  .error {
-    color: var(--color-destructive);
-  } */
 </style>

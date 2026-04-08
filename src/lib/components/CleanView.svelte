@@ -7,7 +7,7 @@
   const cleaner = new EmptyFolderCleaner();
   onDestroy(() => cleaner.cleanup());
 
-  async function openDir() {
+  async function openFolder() {
     const selected = await open({ directory: true });
     if (selected !== null) {
       cleaner.path = selected;
@@ -20,7 +20,7 @@
     bind:path={cleaner.path}
     pathIsValid={cleaner.pathIsValid}
     pathError={cleaner.pathError}
-    onopen={openDir}
+    onopen={openFolder}
     onreload={() => cleaner.reload()}
     lockPath={cleaner.deleting}
     changeCount={cleaner.scanning

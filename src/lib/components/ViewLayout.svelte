@@ -47,7 +47,9 @@
     <p class="error path-error">{pathError}</p>
   </div>
 
-  {@render configExtra?.()}
+  <div class="extra-config">
+    {@render configExtra?.()}
+  </div>
 
   <div class="field options-row">
     <p class="file-count">{changeCount}</p>
@@ -79,7 +81,7 @@
     flex-direction: column;
   }
 
-  .field {
+  :global(.field) {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -123,6 +125,19 @@
     cursor: not-allowed;
   }
 
+  :global(.extra-config) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    justify-content: stretch;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  :global(.extra-config label) {
+    font-weight: bold;
+  }
+
   .options-row {
     display: flex;
     flex-direction: row;
@@ -130,6 +145,10 @@
   }
 
   :global(.options-row button) {
+    --btn-color: var(--color-primary);
+  }
+
+  .group button {
     --btn-color: var(--color-primary);
   }
 
