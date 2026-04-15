@@ -773,7 +773,6 @@ dependencies = [
 name = "file-manager"
 version = "0.2.1"
 dependencies = [
- "serde",
  "serde_json",
  "tauri",
  "tauri-build",
@@ -782,7 +781,6 @@ dependencies = [
  "tauri-plugin-process",
  "tauri-plugin-updater",
  "tauri-plugin-window-state",
- "tempfile",
 ]
 
 [[package]]
