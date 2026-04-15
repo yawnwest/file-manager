@@ -1,0 +1,31 @@
+:root {
+  color-scheme: light dark;
+  --color-background: #ffffff; /* page background */
+  --color-surface: #ffffff; /* card/panel backgrounds */
+  --color-foreground: #1e1e3a; /* default text */
+  --color-primary: #0078f8; /* main accent, CTAs */
+  --color-neutral: #888888; /* neutral actions */
+  --color-success: #00a800; /* success */
+  --color-warning: #f8b800; /* warning */
+  --color-destructive: #d82800; /* destructive actions */
+  --color-ring: #60b4fc; /* focus rings */
+  --color-border: #222222; /* borders, scrollbars and dividers */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0f0f1e;
+    --color-surface: #1e1e3a;
+    --color-foreground: #f4f4ff;
+    --color-border: #3a3a5a;
+    --color-destructive: #f83800;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: system-ui, sans-serif;
+}

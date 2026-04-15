@@ -6,6 +6,8 @@ export class Zoom {
   constructor() {
     $effect(() => {
       getCurrentWebviewWindow().setZoom(this.value).catch(console.error);
+    });
+    $effect(() => {
       document.addEventListener("wheel", this.handleWheel, { passive: false });
       return () => document.removeEventListener("wheel", this.handleWheel);
     });

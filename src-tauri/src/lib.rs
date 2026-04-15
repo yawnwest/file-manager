@@ -1,5 +1,3 @@
-mod commands;
-
 include!(concat!(env!("OUT_DIR"), "/dep_licenses.rs"));
 
 use tauri::menu::{AboutMetadataBuilder, Menu, MenuItemKind, PredefinedMenuItem};
@@ -11,10 +9,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![
-            commands::read_dir,
-            commands::remove_empty_dir
-        ])
+        .invoke_handler(tauri::generate_handler![])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
