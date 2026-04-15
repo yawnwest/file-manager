@@ -1,36 +1,10 @@
 import { readDir, stat, exists, remove, rename } from "@tauri-apps/plugin-fs";
 import { SYSTEM_FILES } from "$lib/constants";
+import { isEntryEmpty, applyRename, globToRegex, matchesFilters } from "./organizer-filters";
+import type { State, Entry, MoveConfig, RenameConfig, FilterConfig } from "./organizer-types";
 
-export type State = "idle" | "scanning" | "deleting" | "renaming" | "moving";
-
-export type EntryStatus = { ok: true } | { ok: false; message: string };
-
-export interface Entry {
-  path: string;
-  isFile: boolean;
-  ignored: boolean;
-  status?: EntryStatus;
-}
-
-export interface MoveConfig {
-  targetPath: string;
-}
-
-export interface RenameConfig {
-  matchPattern: string;
-  renamePattern: string;
-}
-
-export interface FilterConfig {
-  extensions: string[];
-  includePatterns: string[];
-  excludePatterns: string[];
-  excludeFiles: boolean;
-  excludeFolders: boolean;
-  excludeSystemFiles: boolean;
-  recursive: boolean;
-  isEmpty: boolean;
-}
+export type { State, Entry, MoveConfig, RenameConfig, FilterConfig };
+export type { EntryStatus } from "./organizer-types";
 
 export class Organizer {
   path = $state("");
@@ -291,10 +265,6 @@ export class Organizer {
       let entryWillBeDeleted = false;
 
       if (!entry.isFile) {
-        // Recurse first into a local buffer so we can determine childrenWouldBeEmpty
-        // before deciding whether to include the folder itself. The folder entry must
-        // still be pushed BEFORE its children so that deleteAll (which reverses the
-        // list) processes children before their parent.
         const subResult: Entry[] = [];
         let childrenWouldBeEmpty = false;
 
@@ -313,7 +283,7 @@ export class Organizer {
             passes = currentlyEmpty || childrenWouldBeEmpty;
           }
           if (passes) {
-            result.push({ path: entryRelPath, isFile: false, ignored: false }); // folder before its children
+            result.push({ path: entryRelPath, isFile: false, ignored: false });
             entryWillBeDeleted = true;
           }
         }
@@ -328,75 +298,9 @@ export class Organizer {
         }
       }
 
-      // System files don't count towards emptiness (consistent with isEntryEmpty)
       if (!isSystem && !entryWillBeDeleted) allWillBeDeleted = false;
     }
 
     return allWillBeDeleted;
   }
-}
-
-async function isEntryEmpty(fullPath: string, isFile: boolean): Promise<boolean> {
-  if (isFile) {
-    const info = await stat(fullPath);
-    return (info.size ?? 0) === 0;
-  } else {
-    const children = await readDir(fullPath);
-    return children.every((c) => SYSTEM_FILES.has(c.name));
-  }
-}
-
-function applyRename(name: string, isFile: boolean, matchPattern: string, renamePattern: string): string | null {
-  let regex: RegExp;
-  try {
-    regex = new RegExp(matchPattern);
-  } catch {
-    return null;
-  }
-
-  const match = regex.exec(name);
-  if (!match) return null;
-
-  const groups = match.groups ?? {};
-  let newStem = renamePattern;
-  for (const [key, value] of Object.entries(groups)) {
-    newStem = newStem.replaceAll(`$<${key}>`, value ?? "");
-  }
-
-  if (isFile) {
-    const dot = name.lastIndexOf(".");
-    const ext = dot > 0 ? name.slice(dot) : "";
-    return newStem + ext;
-  }
-  return newStem;
-}
-
-function globToRegex(pattern: string): RegExp {
-  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escaped.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
-}
-
-function matchesFilters(relPath: string, isFile: boolean, f: FilterConfig): boolean {
-  if (f.excludeFiles && isFile) return false;
-  if (f.excludeFolders && !isFile) return false;
-
-  const name = relPath.split("/").pop()!;
-
-  if (f.excludeSystemFiles && SYSTEM_FILES.has(name)) return false;
-
-  if (f.extensions.length > 0 && isFile) {
-    const dot = name.lastIndexOf(".");
-    const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
-    if (!f.extensions.some((e) => e.toLowerCase() === ext)) return false;
-  }
-
-  if (f.includePatterns.length > 0) {
-    if (!f.includePatterns.some((p) => globToRegex(p).test(relPath))) return false;
-  }
-
-  if (f.excludePatterns.length > 0) {
-    if (f.excludePatterns.some((p) => globToRegex(p).test(relPath))) return false;
-  }
-
-  return true;
 }
