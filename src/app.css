@@ -3,12 +3,11 @@
   --color-background: #ffffff; /* page background */
   --color-surface: #ffffff; /* card/panel backgrounds */
   --color-foreground: #1e1e3a; /* default text */
-  --color-primary: #0078f8; /* main accent, CTAs */
+  --color-primary: #60b4fc; /* main accent, CTAs */
   --color-neutral: #888888; /* neutral actions */
   --color-success: #00a800; /* success */
   --color-warning: #f8b800; /* warning */
   --color-destructive: #d82800; /* destructive actions */
-  --color-ring: #60b4fc; /* focus rings */
   --color-border: #222222; /* borders, scrollbars and dividers */
 }
 
