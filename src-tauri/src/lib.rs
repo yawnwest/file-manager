@@ -1,6 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/dep_licenses.rs"));
 
 use tauri::menu::{AboutMetadataBuilder, Menu, MenuItemKind, PredefinedMenuItem};
+
 pub fn run() {
     tauri::Builder::default()
         .setup(setup)
@@ -15,33 +16,31 @@ pub fn run() {
 }
 
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let product_name = tauri_product_name();
     let authors = env!("CARGO_PKG_AUTHORS")
         .split(':')
         .map(str::to_string)
         .collect::<Vec<_>>()
         .join(", ");
 
-    let cargo_dependencies = cargo_deps();
-    let npm_dependencies = npm_deps();
-
-    let credits = format!(
-        "Rust Dependencies:\n{}\n\nJavaScript Dependencies:\n{}",
-        cargo_dependencies.join("\n"),
-        npm_dependencies.join("\n"),
+    let version_info = format!(
+        "Version {}\n\nRust Dependencies:\n{}\n\nJavaScript Dependencies:\n{}",
+        env!("CARGO_PKG_VERSION"),
+        cargo_deps().join("\n"),
+        npm_deps().join("\n"),
     );
 
-    let version_info = format!("Version {}\n\n{}", env!("CARGO_PKG_VERSION"), credits);
     let icon = app
         .default_window_icon()
         .map(|img| tauri::image::Image::new_owned(img.rgba().to_vec(), img.width(), img.height()));
+
+    let about_label = product_name.as_ref().map(|n| format!("About {n}"));
     let about = PredefinedMenuItem::about(
         app,
-        tauri_product_name()
-            .map(|n| format!("About {n}"))
-            .as_deref(),
+        about_label.as_deref(),
         Some(
             AboutMetadataBuilder::new()
-                .name(tauri_product_name())
+                .name(product_name)
                 .short_version(Some(env!("CARGO_PKG_VERSION").to_string()))
                 .version(Some(version_info))
                 .copyright(Some(format!("By {authors}")))
@@ -58,12 +57,10 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
         let menu = Menu::new(app.handle())?;
 
-        // Build File menu
         let file_menu = Submenu::new(app.handle(), "File", true)?;
         file_menu.append(&PredefinedMenuItem::quit(app, None)?)?;
         menu.append(&file_menu)?;
 
-        // Build Edit menu with standard items
         let edit_menu = Submenu::new(app.handle(), "Edit", true)?;
         edit_menu.append(&PredefinedMenuItem::undo(app, None)?)?;
         edit_menu.append(&PredefinedMenuItem::redo(app, None)?)?;
@@ -73,7 +70,6 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         edit_menu.append(&PredefinedMenuItem::paste(app, None)?)?;
         menu.append(&edit_menu)?;
 
-        // Build Help menu with our About
         let help_menu = Submenu::new(app.handle(), "Help", true)?;
         help_menu.append(&about)?;
         menu.append(&help_menu)?;
@@ -85,13 +81,11 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     {
         let menu = Menu::default(app.handle())?;
 
-        // On macOS, replace the default About (always first item) with our custom one
         if let Some(MenuItemKind::Submenu(app_submenu)) = menu.items()?.into_iter().next() {
             app_submenu.remove_at(0)?;
             app_submenu.insert(&about, 0)?;
         }
 
-        // Remove the Help menu
         for item in menu.items()? {
             if let MenuItemKind::Submenu(sub) = item {
                 if sub.text()? == "Help" {
@@ -103,6 +97,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
         app.set_menu(menu)?;
     }
+
     Ok(())
 }
 
@@ -114,12 +109,11 @@ fn tauri_product_name() -> Option<String> {
         .map(str::to_string)
 }
 
-fn cargo_deps() -> Vec<String> {
-    parse_cargo_deps(include_str!("../Cargo.toml"))
-        .into_iter()
+fn attach_licenses(deps: Vec<String>, licenses: &[(&str, &str)]) -> Vec<String> {
+    deps.into_iter()
         .map(|dep| {
             let name = dep.split_whitespace().next().unwrap_or("");
-            let license = CARGO_LICENSES
+            let license = licenses
                 .iter()
                 .find(|(n, _)| *n == name)
                 .map(|(_, l)| *l)
@@ -127,6 +121,20 @@ fn cargo_deps() -> Vec<String> {
             format!("{dep} ({license})")
         })
         .collect()
+}
+
+fn cargo_deps() -> Vec<String> {
+    attach_licenses(
+        parse_cargo_deps(include_str!("../Cargo.toml")),
+        CARGO_LICENSES,
+    )
+}
+
+fn npm_deps() -> Vec<String> {
+    attach_licenses(
+        parse_npm_deps(include_str!("../../package.json")),
+        NPM_LICENSES,
+    )
 }
 
 fn parse_cargo_deps(content: &str) -> Vec<String> {
@@ -168,21 +176,6 @@ fn parse_cargo_deps(content: &str) -> Vec<String> {
     deps
 }
 
-fn npm_deps() -> Vec<String> {
-    parse_npm_deps(include_str!("../../package.json"))
-        .into_iter()
-        .map(|dep| {
-            let name = dep.split_whitespace().next().unwrap_or("");
-            let license = NPM_LICENSES
-                .iter()
-                .find(|(n, _)| *n == name)
-                .map(|(_, l)| *l)
-                .unwrap_or("Unknown");
-            format!("{dep} ({license})")
-        })
-        .collect()
-}
-
 fn parse_npm_deps(content: &str) -> Vec<String> {
     let json: serde_json::Value = serde_json::from_str(content).unwrap_or_default();
     json.get("dependencies")
@@ -214,6 +207,12 @@ mod tests {
     }
 
     #[test]
+    fn cargo_inline_table_no_version() {
+        let toml = "[dependencies]\nfoo = { path = \"../foo\" }\n";
+        assert_eq!(parse_cargo_deps(toml), vec!["foo ?"]);
+    }
+
+    #[test]
     fn cargo_multiple_deps() {
         let toml = "[dependencies]\nfoo = \"1.0\"\nbar = \"2.3\"\n";
         assert_eq!(parse_cargo_deps(toml), vec!["foo 1.0", "bar 2.3"]);
@@ -221,7 +220,12 @@ mod tests {
 
     #[test]
     fn cargo_ignores_comment_lines() {
+        // comment without '=': skipped by split_once
         let toml = "[dependencies]\n# this is a comment\nfoo = \"1.0\"\n";
+        assert_eq!(parse_cargo_deps(toml), vec!["foo 1.0"]);
+
+        // comment with '=': caught by starts_with('#') guard
+        let toml = "[dependencies]\n#disabled = \"0.1\"\nfoo = \"1.0\"\n";
         assert_eq!(parse_cargo_deps(toml), vec!["foo 1.0"]);
     }
 
@@ -229,6 +233,13 @@ mod tests {
     fn cargo_ignores_empty_lines() {
         let toml = "[dependencies]\n\nfoo = \"1.0\"\n\nbar = \"2.0\"\n";
         assert_eq!(parse_cargo_deps(toml), vec!["foo 1.0", "bar 2.0"]);
+    }
+
+    #[test]
+    fn cargo_ignores_empty_name() {
+        // line starting with '=' has an empty name after trim
+        let toml = "[dependencies]\n= \"1.0\"\nfoo = \"2.0\"\n";
+        assert_eq!(parse_cargo_deps(toml), vec!["foo 2.0"]);
     }
 
     #[test]
@@ -251,6 +262,13 @@ mod tests {
         let mut result = parse_npm_deps(json);
         result.sort();
         assert_eq!(result, vec!["react ^18.0.0", "vite ^5.0.0"]);
+    }
+
+    #[test]
+    fn npm_non_string_value() {
+        // nested objects (workspaces etc.) fall back to "?"
+        let json = r#"{"dependencies": {"foo": {"version": "1.0"}}}"#;
+        assert_eq!(parse_npm_deps(json), vec!["foo ?"]);
     }
 
     #[test]
