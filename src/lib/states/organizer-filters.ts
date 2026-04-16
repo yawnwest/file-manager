@@ -1,5 +1,5 @@
-import { readDir, stat } from "@tauri-apps/plugin-fs";
 import { SYSTEM_FILES } from "$lib/constants";
+import { readDir, stat } from "@tauri-apps/plugin-fs";
 import type { FilterConfig } from "./organizer-types";
 
 export async function isEntryEmpty(fullPath: string, isFile: boolean): Promise<boolean> {

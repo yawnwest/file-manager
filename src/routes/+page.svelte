@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { Zoom } from "$lib/states/zoom.svelte";
   import OrganizerView from "$lib/components/OrganizerView.svelte";
   import UpdateChecker from "$lib/components/UpdateChecker.svelte";
+  import { Zoom } from "$lib/states/zoom.svelte";
 
   const zoom = new Zoom();
 

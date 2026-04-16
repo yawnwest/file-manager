@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
   import { Organizer } from "$lib/states/organizer.svelte";
-  import { open, confirm } from "@tauri-apps/plugin-dialog";
-  import FilterPanel from "./FilterPanel.svelte";
+  import { confirm, open } from "@tauri-apps/plugin-dialog";
+  import { onDestroy } from "svelte";
   import ActionPanel from "./ActionPanel.svelte";
   import EntriesTable from "./EntriesTable.svelte";
+  import FilterPanel from "./FilterPanel.svelte";
 
   const organizer = new Organizer();
   const disabled = $derived(organizer.state !== "idle");

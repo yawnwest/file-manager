@@ -1,10 +1,10 @@
-import { readDir, stat, exists, remove, rename } from "@tauri-apps/plugin-fs";
 import { SYSTEM_FILES } from "$lib/constants";
-import { isEntryEmpty, applyRename, globToRegex, matchesFilters } from "./organizer-filters";
-import type { State, Entry, MoveConfig, RenameConfig, FilterConfig } from "./organizer-types";
+import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
+import { applyRename, globToRegex, isEntryEmpty, matchesFilters } from "./organizer-filters";
+import type { Entry, FilterConfig, MoveConfig, RenameConfig, State } from "./organizer-types";
 
-export type { State, Entry, MoveConfig, RenameConfig, FilterConfig };
 export type { EntryStatus } from "./organizer-types";
+export type { Entry, FilterConfig, MoveConfig, RenameConfig, State };
 
 export class Organizer {
   path = $state("");

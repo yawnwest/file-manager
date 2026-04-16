@@ -1,8 +1,8 @@
 <script lang="ts">
   import { confirm, message } from "@tauri-apps/plugin-dialog";
-  import { onMount } from "svelte";
-  import { check } from "@tauri-apps/plugin-updater";
   import { relaunch } from "@tauri-apps/plugin-process";
+  import { check } from "@tauri-apps/plugin-updater";
+  import { onMount } from "svelte";
 
   let phase: "idle" | "downloading" | "installing" = $state("idle");
   let downloaded = $state(0);
