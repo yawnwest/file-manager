@@ -7,10 +7,17 @@
   import FilterPanel from "./FilterPanel.svelte";
 
   const organizer = new Organizer();
-  const disabled = $derived(organizer.state !== "idle");
+  const isExecuting = $derived(organizer.state !== "idle" && organizer.state !== "scanning");
+  const isExecutingOrScanning = $derived(organizer.state !== "idle");
   onDestroy(organizer.cleanup);
 
   let action = $state<"delete" | "move" | "rename">("delete");
+
+  $effect(() => {
+    if (action !== "delete") {
+      organizer.filters.isEmpty = false;
+    }
+  });
 
   async function openFolder() {
     const selected = await open({ directory: true });
@@ -71,20 +78,21 @@
         bind:value={organizer.path}
         class:invalid={!organizer.pathIsValid}
         aria-invalid={!organizer.pathIsValid || undefined}
-        disabled={disabled && organizer.state !== "scanning"}
+        disabled={isExecuting}
       />
-      <button onclick={openFolder} {disabled}>Open …</button>
-      <button onclick={reloadFolder} {disabled} aria-label="Reload folder">↺</button>
+      <button onclick={openFolder} disabled={isExecuting}>Open …</button>
+      <button onclick={reloadFolder} disabled={isExecuting} aria-label="Reload folder">↺</button>
     </div>
     <p class="error path-error" aria-live="polite">{organizer.pathError}</p>
   </section>
 
-  <FilterPanel filters={organizer.filters} {disabled} />
+  <FilterPanel bind:filters={organizer.filters} disabled={isExecuting} />
 
   <ActionPanel
     bind:action
     {organizer}
-    {disabled}
+    disabled={isExecuting}
+    disabledExecute={isExecutingOrScanning}
     onDeleteAll={deleteAll}
     onMoveAll={moveAll}
     onRenameAll={renameAll}
@@ -120,50 +128,12 @@
     font-weight: bold;
   }
 
-  input {
+  input:not([type="checkbox"]):not([type="radio"]) {
     flex: 1;
-  }
-
-  input,
-  button {
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-  }
-
-  input {
-    background-color: var(--color-surface);
-    color-scheme: light dark;
-  }
-
-  button {
-    --btn-color: var(--color-primary);
-    color: #ffffff;
-    background-color: var(--btn-color);
-    cursor: pointer;
-  }
-
-  button:active:not(:disabled) {
-    background-color: color-mix(in srgb, var(--btn-color) 80%, black);
-  }
-
-  button:disabled,
-  input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transition: opacity 0s 150ms;
-  }
-
-  .error {
-    color: var(--color-destructive);
   }
 
   .path-error {
     margin: 0.5rem 0 0;
     min-height: 1lh;
-  }
-
-  .invalid {
-    outline: 2px solid var(--color-destructive);
   }
 </style>

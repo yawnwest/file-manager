@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Organizer } from "$lib/states/organizer.svelte";
+  import { computeNewName } from "$lib/states/organizer-rename";
 
   let {
     organizer,
@@ -48,7 +49,9 @@
 
 <section class="entries">
   <p class="entry-count">
-    {#if action === "rename"}
+    {#if organizer.state === "scanning"}
+      Scanning… {organizer.scanned > 0 ? `${organizer.scanned} entries found` : ""}
+    {:else if action === "rename"}
       {organizer.renameCount} of {organizer.entryCount} matching
     {:else}
       {organizer.activeCount} of {organizer.entryCount} entries
@@ -69,7 +72,10 @@
           <tr class="spacer" style="height: {virtualState.offsetTop}px"><td colspan={colSpan}></td></tr>
         {/if}
         {#each virtualState.visible as entry, i (entry.path)}
-          {@const newName = action === "rename" ? organizer.computeNewName(entry) : null}
+          {@const newName =
+            action === "rename"
+              ? computeNewName(entry, organizer.renameRegex, organizer.renameConfig.renamePattern)
+              : null}
           <tr class:ignored={entry.ignored} class:even={(virtualState.start + i) % 2 === 1}>
             <td class="col-ignore"><input type="checkbox" bind:checked={entry.ignored} /></td>
             <td class="col-path">{entry.isFile ? "📄" : "📁"} {entry.path}</td>

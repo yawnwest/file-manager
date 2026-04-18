@@ -2,7 +2,8 @@ import { SYSTEM_FILES } from "$lib/constants";
 import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
 import safeRegex from "safe-regex2";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { applyRename, globToRegex, isEntryEmpty, matchesFilters } from "./organizer-filters";
+import { globToRegex, isEntryEmpty, matchesFilters } from "./organizer-filters";
+import { computeNewName } from "./organizer-rename";
 import type { Entry, FilterConfig, MoveConfig, RenameConfig, State } from "./organizer-types";
 
 export type { EntryStatus } from "./organizer-types";
@@ -53,7 +54,11 @@ export class Organizer {
   private _entries: Entry[] = $state([]);
   readonly entryCount = $derived(this._entries.length);
   readonly activeCount = $derived(this._entries.filter((e) => !e.ignored).length);
-  readonly renameCount = $derived(this._entries.filter((e) => !e.ignored && this.computeNewName(e) !== null).length);
+  readonly renameCount = $derived(
+    this._entries.filter(
+      (e) => !e.ignored && computeNewName(e, this._renameRegex, this.renameConfig.renamePattern) !== null,
+    ).length,
+  );
   private _scanned = $state(0);
   private _scanCount = 0;
 
@@ -113,6 +118,10 @@ export class Organizer {
     this._scan();
   }
 
+  get renameRegex() {
+    return this._renameRegex;
+  }
+
   async deleteAll() {
     this._state = "deleting";
     try {
@@ -139,21 +148,13 @@ export class Organizer {
     }
   }
 
-  computeNewName(entry: Entry): string | null {
-    const regex = this._renameRegex;
-    if (!regex) return null;
-    const filename = entry.path.split("/").pop();
-    if (!filename) return null;
-    return applyRename(filename, entry.isFile, regex, this.renameConfig.renamePattern);
-  }
-
   async renameAll() {
     this._state = "renaming";
     try {
       const targetMap = new SvelteMap<string, Entry>();
       for (const entry of this._entries) {
         if (entry.ignored) continue;
-        const newName = this.computeNewName(entry);
+        const newName = computeNewName(entry, this._renameRegex, this.renameConfig.renamePattern);
         if (newName === null) continue;
         const dir = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/") + 1) : "";
         const newFullPath = `${this.path}/${dir}${newName}`;
@@ -167,7 +168,9 @@ export class Organizer {
       }
 
       const sourcePaths = new SvelteSet(
-        this._entries.filter((e) => !e.ignored && this.computeNewName(e) !== null).map((e) => `${this.path}/${e.path}`),
+        this._entries
+          .filter((e) => !e.ignored && computeNewName(e, this._renameRegex, this.renameConfig.renamePattern) !== null)
+          .map((e) => `${this.path}/${e.path}`),
       );
       for (const [newFullPath, entry] of targetMap) {
         if (entry.status) continue;
@@ -179,7 +182,7 @@ export class Organizer {
       for (const entry of this._entries) {
         if (entry.ignored) continue;
         if (entry.status) continue;
-        const newName = this.computeNewName(entry);
+        const newName = computeNewName(entry, this._renameRegex, this.renameConfig.renamePattern);
         if (newName === null) continue;
         const oldFullPath = `${this.path}/${entry.path}`;
         const dir = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/") + 1) : "";
@@ -267,8 +270,9 @@ export class Organizer {
   }
 
   private _scan() {
+    this._pathError = "";
+
     if (!this.path) {
-      this._pathError = "";
       return;
     }
 
@@ -276,8 +280,9 @@ export class Organizer {
       clearTimeout(this.debounceTimer);
     }
 
+    const currentId = ++this.requestId;
+
     this.debounceTimer = setTimeout(async () => {
-      const currentId = ++this.requestId;
       this._state = "scanning";
 
       try {
@@ -310,18 +315,22 @@ export class Organizer {
 
   // Returns true if all non-system children of this directory would be deleted,
   // i.e. the directory would become empty after the operation.
-  private async _scanDir(relPath: string, requestId: number, result: Entry[]): Promise<boolean> {
+  private async _scanDir(
+    relPath: string,
+    requestId: number,
+    result: Entry[],
+    rootResult: Entry[] = result,
+  ): Promise<boolean> {
     if (requestId !== this.requestId) return false;
 
-    if (++this._scanCount % 50 === 0) {
-      this._scanned = this._scanCount;
-      this._entries = [...result];
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      if (requestId !== this.requestId) return false;
-    }
-
     const fullPath = relPath ? `${this.path}/${relPath}` : this.path;
-    const realEntries = await readDir(fullPath);
+    let realEntries: Awaited<ReturnType<typeof readDir>>;
+    try {
+      realEntries = await readDir(fullPath);
+    } catch (e) {
+      if (!relPath) throw e;
+      return false;
+    }
 
     let allWillBeDeleted = true;
 
@@ -337,10 +346,14 @@ export class Organizer {
         const subResult: Entry[] = [];
         let childrenWouldBeEmpty = false;
 
-        if (this.filters.recursive) {
+        if (this.filters.recursive && !entry.isSymlink) {
           const childrenExcluded = this._compiledPatterns.exclude.some((r) => r.test(entryRelPath + "/_"));
           if (!childrenExcluded) {
-            childrenWouldBeEmpty = await this._scanDir(entryRelPath, requestId, subResult);
+            try {
+              childrenWouldBeEmpty = await this._scanDir(entryRelPath, requestId, subResult, rootResult);
+            } catch {
+              childrenWouldBeEmpty = false;
+            }
             if (requestId !== this.requestId) return false;
           }
         }
@@ -348,7 +361,7 @@ export class Organizer {
         if (matchesFilters(entryRelPath, false, this.filters, this._compiledPatterns)) {
           let passes = !this.filters.isEmpty;
           if (!passes) {
-            const currentlyEmpty = await isEntryEmpty(entryFullPath, false);
+            const currentlyEmpty = await isEntryEmpty(entryFullPath, false).catch(() => false);
             passes = currentlyEmpty || childrenWouldBeEmpty;
           }
           if (passes) {
@@ -360,7 +373,7 @@ export class Organizer {
         result.push(...subResult);
       } else {
         if (matchesFilters(entryRelPath, true, this.filters, this._compiledPatterns)) {
-          if (!this.filters.isEmpty || (await isEntryEmpty(entryFullPath, true))) {
+          if (!this.filters.isEmpty || (await isEntryEmpty(entryFullPath, true).catch(() => false))) {
             result.push({ path: entryRelPath, isFile: true, ignored: false });
             entryWillBeDeleted = true;
           }
@@ -368,6 +381,13 @@ export class Organizer {
       }
 
       if (!isSystem && !entryWillBeDeleted) allWillBeDeleted = false;
+
+      if (++this._scanCount % 200 === 0) {
+        this._scanned = rootResult.length;
+        this._entries = [...rootResult];
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (requestId !== this.requestId) return false;
+      }
     }
 
     return allWillBeDeleted;

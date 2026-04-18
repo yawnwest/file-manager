@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { FilterConfig } from "$lib/states/organizer-types";
 
-  let { filters, disabled }: { filters: FilterConfig; disabled: boolean } = $props();
+  let { filters = $bindable(), disabled }: { filters: FilterConfig; disabled: boolean } = $props();
 
   function parseList(value: string): string[] {
     return value
@@ -61,22 +61,8 @@
 </section>
 
 <style>
-  input {
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-  }
-
-  input {
+  input:not([type="checkbox"]):not([type="radio"]) {
     flex: 1;
-    background-color: var(--color-surface);
-    color-scheme: light dark;
-  }
-
-  input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transition: opacity 0s 150ms;
   }
 
   .filters {

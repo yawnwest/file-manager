@@ -5,6 +5,7 @@
     action = $bindable<"delete" | "move" | "rename">(),
     organizer,
     disabled,
+    disabledExecute,
     onDeleteAll,
     onMoveAll,
     onRenameAll,
@@ -13,6 +14,7 @@
     action: "delete" | "move" | "rename";
     organizer: Organizer;
     disabled: boolean;
+    disabledExecute: boolean;
     onDeleteAll: () => void;
     onMoveAll: () => void;
     onRenameAll: () => void;
@@ -39,7 +41,7 @@
       </label>
     </div>
     <div class="action-execute">
-      <button class="btn-danger" onclick={onDeleteAll} disabled={disabled || organizer.activeCount === 0}
+      <button class="btn-danger" onclick={onDeleteAll} disabled={disabledExecute || organizer.activeCount === 0}
         >Delete all</button
       >
     </div>
@@ -52,7 +54,7 @@
           placeholder="Enter a target folder path..."
           bind:value={organizer.moveConfig.targetPath}
           class:invalid={organizer.moveConfig.targetPath && !organizer.moveTargetIsValid}
-          disabled={disabled && organizer.state !== "scanning"}
+          {disabled}
         />
         <button onclick={onOpenMoveTarget} {disabled}>Open …</button>
       </div>
@@ -63,7 +65,7 @@
     <div class="action-execute">
       <button
         onclick={onMoveAll}
-        disabled={disabled ||
+        disabled={disabledExecute ||
           organizer.activeCount === 0 ||
           !organizer.moveTargetIsValid ||
           !organizer.moveConfig.targetPath}
@@ -96,7 +98,7 @@
       <p class="error">{organizer.renamePatternError}</p>
     {/if}
     <div class="action-execute">
-      <button onclick={onRenameAll} disabled={disabled || organizer.renameCount === 0}>
+      <button onclick={onRenameAll} disabled={disabledExecute || organizer.renameCount === 0}>
         Rename {organizer.renameCount} of {organizer.entryCount}
       </button>
     </div>
@@ -115,47 +117,12 @@
     font-weight: bold;
   }
 
-  input,
-  button {
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-  }
-
-  input {
+  input:not([type="checkbox"]):not([type="radio"]) {
     flex: 1;
-    background-color: var(--color-surface);
-    color-scheme: light dark;
   }
 
   .btn-danger {
     --btn-color: var(--color-destructive);
-  }
-
-  button {
-    --btn-color: var(--color-primary);
-    color: #ffffff;
-    background-color: var(--btn-color);
-    cursor: pointer;
-  }
-
-  button:active:not(:disabled) {
-    background-color: color-mix(in srgb, var(--btn-color) 80%, black);
-  }
-
-  button:disabled,
-  input:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transition: opacity 0s 150ms;
-  }
-
-  .error {
-    color: var(--color-destructive);
-  }
-
-  .invalid {
-    outline: 2px solid var(--color-destructive);
   }
 
   .action-config {
