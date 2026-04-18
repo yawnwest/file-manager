@@ -70,7 +70,7 @@
   .update-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: color-mix(in srgb, var(--color-background) 75%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -104,7 +104,6 @@
   .progress-fill {
     height: 100%;
     background: var(--color-primary);
-    border-radius: 3px;
     transition: width 0.2s ease;
   }
 
