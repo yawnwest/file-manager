@@ -32,12 +32,6 @@ export function matchesFilters(
 
   if (f.excludeSystemFiles && SYSTEM_FILES.has(name)) return false;
 
-  if (f.extensions.length > 0 && isFile) {
-    const dot = name.lastIndexOf(".");
-    const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
-    if (!f.extensions.some((e) => e.toLowerCase() === ext)) return false;
-  }
-
   if (compiled.include.length > 0) {
     if (!compiled.include.some((r) => r.test(relPath))) return false;
   }

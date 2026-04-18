@@ -7,17 +7,12 @@
   import FilterPanel from "./FilterPanel.svelte";
 
   const organizer = new Organizer();
-  const isExecuting = $derived(organizer.state !== "idle" && organizer.state !== "scanning");
-  const isExecutingOrScanning = $derived(organizer.state !== "idle");
+  const isExecuting = $derived(
+    organizer.state === "deleting" || organizer.state === "renaming" || organizer.state === "moving",
+  );
   onDestroy(organizer.cleanup);
 
   let action = $state<"delete" | "move" | "rename">("delete");
-
-  $effect(() => {
-    if (action !== "delete") {
-      organizer.filters.isEmpty = false;
-    }
-  });
 
   async function openFolder() {
     const selected = await open({ directory: true });
@@ -92,7 +87,7 @@
     bind:action
     {organizer}
     disabled={isExecuting}
-    disabledExecute={isExecutingOrScanning}
+    disabledExecute={organizer.state !== "idle"}
     onDeleteAll={deleteAll}
     onMoveAll={moveAll}
     onRenameAll={renameAll}

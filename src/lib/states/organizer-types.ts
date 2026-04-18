@@ -1,4 +1,4 @@
-export type State = "idle" | "scanning" | "deleting" | "renaming" | "moving";
+export type State = "idle" | "scanning" | "deleting" | "renaming" | "moving" | "done";
 
 export type EntryStatus = { ok: true } | { ok: false; message: string };
 
@@ -19,7 +19,6 @@ export interface RenameConfig {
 }
 
 export interface FilterConfig {
-  extensions: string[];
   includePatterns: string[];
   excludePatterns: string[];
   excludeFiles: boolean;

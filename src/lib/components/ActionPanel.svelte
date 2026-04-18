@@ -35,11 +35,6 @@
     </label>
   </div>
   {#if action === "delete"}
-    <div class="action-options">
-      <label>
-        <input type="checkbox" bind:checked={organizer.filters.isEmpty} {disabled} /> Is empty
-      </label>
-    </div>
     <div class="action-execute">
       <button class="btn-danger" onclick={onDeleteAll} disabled={disabledExecute || organizer.activeCount === 0}
         >Delete all</button

@@ -14,6 +14,11 @@
 <section class="filters">
   <div class="filter-row">
     <label>
+      <input type="checkbox" bind:checked={filters.recursive} {disabled} /> Recursive
+    </label>
+  </div>
+  <div class="filter-row">
+    <label>
       <input type="checkbox" bind:checked={filters.excludeFiles} {disabled} /> Exclude Files
     </label>
     <label>
@@ -23,25 +28,15 @@
       <input type="checkbox" bind:checked={filters.excludeSystemFiles} {disabled} /> Exclude system files
     </label>
     <label>
-      <input type="checkbox" bind:checked={filters.recursive} {disabled} /> Recursive
+      <input type="checkbox" bind:checked={filters.isEmpty} {disabled} /> Is empty
     </label>
   </div>
   <div class="filter-row">
     <div class="filter-field">
-      <label for="filter-extensions">Extensions</label>
-      <input
-        id="filter-extensions"
-        placeholder="mkv, rar, txt"
-        {disabled}
-        value={filters.extensions.join(", ")}
-        oninput={(e) => (filters.extensions = parseList(e.currentTarget.value))}
-      />
-    </div>
-    <div class="filter-field">
       <label for="include-patterns">Include</label>
       <input
         id="include-patterns"
-        placeholder="src/*, *.test.*"
+        placeholder="*.mkv, src/*, *.test.*"
         {disabled}
         value={filters.includePatterns.join(", ")}
         oninput={(e) => (filters.includePatterns = parseList(e.currentTarget.value))}
@@ -51,7 +46,7 @@
       <label for="filter-exclude-patterns">Exclude</label>
       <input
         id="filter-exclude-patterns"
-        placeholder=".git, node_modules"
+        placeholder="*.tmp, .git, **/node_modules"
         {disabled}
         value={filters.excludePatterns.join(", ")}
         oninput={(e) => (filters.excludePatterns = parseList(e.currentTarget.value))}

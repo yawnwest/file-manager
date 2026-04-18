@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Organizer } from "$lib/states/organizer.svelte";
   import { computeNewName } from "$lib/states/organizer-rename";
+  import { SvelteSet } from "svelte/reactivity";
 
   let {
     organizer,
@@ -45,6 +46,15 @@
   });
 
   const colSpan = $derived(action === "rename" ? 4 : 3);
+
+  let expanded = $state(new Set<string>());
+
+  function toggleExpand(path: string) {
+    const next = new SvelteSet(expanded);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    expanded = next;
+  }
 </script>
 
 <section class="entries">
@@ -76,9 +86,14 @@
             action === "rename"
               ? computeNewName(entry, organizer.renameRegex, organizer.renameConfig.renamePattern)
               : null}
+          {@const isExpanded = expanded.has(entry.path)}
           <tr class:ignored={entry.ignored} class:even={(virtualState.start + i) % 2 === 1}>
             <td class="col-ignore"><input type="checkbox" bind:checked={entry.ignored} /></td>
-            <td class="col-path">{entry.isFile ? "📄" : "📁"} {entry.path}</td>
+            <td class="col-path" onclick={() => toggleExpand(entry.path)} role="button" tabindex="0">
+              <span class="expand-chevron" class:expanded={isExpanded}>›</span>
+              {entry.isFile ? "📄" : "📁"}
+              {entry.path}
+            </td>
             {#if action === "rename"}
               <td class="col-new-name">
                 {#if newName !== null}
@@ -88,16 +103,27 @@
                 {/if}
               </td>
             {/if}
-            <td class="col-status">
+            <td class="col-status" onclick={() => toggleExpand(entry.path)} role="button" tabindex="0">
               {#if entry.status?.ok === true}
-                <span class="status-ok">
-                  {action === "rename" ? "Renamed" : action === "move" ? "Moved" : "Deleted"}
-                </span>
+                <span class="status-ok"
+                  >{action === "rename" ? "Renamed" : action === "move" ? "Moved" : "Deleted"}</span
+                >
               {:else if entry.status?.ok === false}
-                <span class="status-error">{entry.status.message}</span>
+                <span class="status-error">Failed</span>
               {/if}
             </td>
           </tr>
+          {#if isExpanded}
+            <tr class="detail-row" class:even={(virtualState.start + i) % 2 === 1}>
+              <td></td>
+              <td colspan={colSpan - 1} class="detail-cell">
+                <div class="detail-path">{entry.path}</div>
+                {#if entry.status?.ok === false}
+                  <div class="detail-error">{entry.status.message}</div>
+                {/if}
+              </td>
+            </tr>
+          {/if}
         {/each}
         {#if virtualState.offsetBottom > 0}
           <tr class="spacer" style="height: {virtualState.offsetBottom}px"><td colspan={colSpan}></td></tr>
@@ -175,6 +201,41 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .expand-chevron {
+    display: inline-block;
+    transition: transform 0.15s;
+    font-style: normal;
+    color: color-mix(in srgb, var(--color-foreground) 40%, transparent);
+  }
+
+  .expand-chevron.expanded {
+    transform: rotate(90deg);
+  }
+
+  .detail-row td {
+    padding-top: 0;
+  }
+
+  .detail-cell {
+    padding-bottom: 0.5rem;
+    word-break: break-all;
+    white-space: normal;
+  }
+
+  .detail-path {
+    font-size: 0.85em;
+    color: color-mix(in srgb, var(--color-foreground) 70%, transparent);
+    font-family: monospace;
+  }
+
+  .detail-error {
+    font-size: 0.85em;
+    color: var(--color-destructive);
+    margin-top: 0.2rem;
   }
 
   .col-new-name {
@@ -192,6 +253,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+    user-select: none;
   }
 
   .status-ok {

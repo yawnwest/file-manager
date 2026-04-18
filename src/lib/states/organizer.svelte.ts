@@ -12,7 +12,6 @@ export type { Entry, FilterConfig, MoveConfig, RenameConfig, State };
 export class Organizer {
   path = $state("");
   filters: FilterConfig = $state({
-    extensions: [],
     includePatterns: [],
     excludePatterns: [],
     excludeFiles: false,
@@ -73,7 +72,6 @@ export class Organizer {
 
   private readonly _scanConfig = $derived({
     path: this.path,
-    extensionsLen: this.filters.extensions.length,
     includePatternsLen: this.filters.includePatterns.length,
     excludePatternsLen: this.filters.excludePatterns.length,
     excludeFiles: this.filters.excludeFiles,
@@ -144,7 +142,7 @@ export class Organizer {
         }
       }
     } finally {
-      this._state = "idle";
+      this._state = "done";
     }
   }
 
@@ -199,7 +197,7 @@ export class Organizer {
         }
       }
     } finally {
-      this._state = "idle";
+      this._state = "done";
     }
   }
 
@@ -265,7 +263,7 @@ export class Organizer {
         }
       }
     } finally {
-      this._state = "idle";
+      this._state = "done";
     }
   }
 
