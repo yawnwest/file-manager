@@ -146,7 +146,7 @@
     flex-direction: column;
     flex: 1;
     overflow: hidden;
-    min-height: 0;
+    min-height: 150px;
   }
 
   .scroll-container {

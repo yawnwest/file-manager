@@ -102,13 +102,14 @@
     display: flex;
     flex-direction: column;
     flex: 1;
-    overflow: hidden;
+    overflow-y: auto;
     min-height: 0;
   }
 
   .folder-selector {
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
     padding: 1rem;
   }
 

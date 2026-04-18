@@ -345,7 +345,7 @@ export class Organizer {
         let childrenWouldBeEmpty = false;
 
         if (this.filters.recursive && !entry.isSymlink) {
-          const childrenExcluded = this._compiledPatterns.exclude.some((r) => r.test(entryRelPath + "/_"));
+          const childrenExcluded = this._compiledPatterns.exclude.some((r) => r.test(entryRelPath));
           if (!childrenExcluded) {
             try {
               childrenWouldBeEmpty = await this._scanDir(entryRelPath, requestId, subResult, rootResult);

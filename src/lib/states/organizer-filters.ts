@@ -1,22 +1,49 @@
 import { SYSTEM_FILES } from "$lib/constants";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
-import safeRegex from "safe-regex2";
 import type { FilterConfig } from "./organizer-types";
 
 export async function isEntryEmpty(fullPath: string, isFile: boolean): Promise<boolean> {
-  if (isFile) {
-    const info = await stat(fullPath);
-    return (info.size ?? 0) === 0;
-  } else {
-    const children = await readDir(fullPath);
-    return children.every((c) => SYSTEM_FILES.has(c.name));
+  try {
+    if (isFile) {
+      const info = await stat(fullPath);
+      return (info.size ?? 0) === 0;
+    } else {
+      const children = await readDir(fullPath);
+      return children.every((c) => SYSTEM_FILES.has(c.name));
+    }
+  } catch {
+    return false;
   }
 }
 
 export function globToRegex(pattern: string): RegExp | null {
-  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  const regex = new RegExp(`^${escaped.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
-  return safeRegex(regex) ? regex : null;
+  // gitignore semantics:
+  // - No '/' in pattern → match against basename (anywhere in path)
+  // - Leading '/' → anchor to root
+  // - '/' elsewhere → match against full relative path
+  let p = pattern.endsWith("/") ? pattern.slice(0, -1) : pattern;
+
+  const hasLeadingSlash = p.startsWith("/");
+  if (hasLeadingSlash) p = p.slice(1);
+
+  const matchFilenameOnly = !hasLeadingSlash && !p.includes("/");
+
+  const escaped = p.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  let regexStr = escaped
+    .replace(/\*\*/g, "\x00")
+    .replace(/\*/g, "[^/]*")
+    .replace(/\?/g, "[^/]")
+    .replace(/\x00\//g, "([^/]+/)*")
+    .replace(/\/\x00/g, "(/.*)?")
+    .replace(/\x00/g, ".*");
+
+  if (matchFilenameOnly) regexStr = `(.*\/)?${regexStr}`;
+
+  try {
+    return new RegExp(`^${regexStr}$`);
+  } catch {
+    return null;
+  }
 }
 
 export function matchesFilters(

@@ -123,6 +123,7 @@
   .action-config {
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
     gap: 0.8rem;
     margin: 0.75rem 1rem;
     padding: 0.75rem 1rem;
