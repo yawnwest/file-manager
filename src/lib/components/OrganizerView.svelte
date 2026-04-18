@@ -21,10 +21,6 @@
     }
   }
 
-  function reloadFolder() {
-    organizer.reload();
-  }
-
   async function deleteAll() {
     const ok = await confirm(
       `Delete ${organizer.activeCount} of ${organizer.entryCount} entries? This cannot be undone.`,
@@ -76,7 +72,11 @@
         disabled={isExecuting}
       />
       <button onclick={openFolder} disabled={isExecuting}>Open …</button>
-      <button onclick={reloadFolder} disabled={isExecuting} aria-label="Reload folder">↺</button>
+      <button
+        onclick={organizer.reload}
+        disabled={organizer.state !== "idle" && organizer.state !== "done" && organizer.state !== "scanning"}
+        aria-label="Reload folder">↺</button
+      >
     </div>
     <p class="error path-error" aria-live="polite">{organizer.pathError}</p>
   </section>
@@ -124,7 +124,7 @@
     font-weight: bold;
   }
 
-  input:not([type="checkbox"]):not([type="radio"]) {
+  .field input {
     flex: 1;
   }
 
