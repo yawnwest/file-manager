@@ -52,12 +52,19 @@
       {#if phase === "downloading"}
         <p>Downloading update…</p>
         {#if percent !== null}
-          <div class="progress-bar">
+          <div
+            class="progress-bar"
+            role="progressbar"
+            aria-valuenow={percent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Download progress"
+          >
             <div class="progress-fill" style="width: {percent}%"></div>
           </div>
           <span class="progress-label">{percent}%</span>
         {:else}
-          <div class="progress-bar indeterminate"></div>
+          <div class="progress-bar indeterminate" role="progressbar" aria-label="Downloading…"></div>
         {/if}
       {:else}
         <p>Installing… The app will restart shortly.</p>

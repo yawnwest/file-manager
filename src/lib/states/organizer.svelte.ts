@@ -1,5 +1,6 @@
 import { SYSTEM_FILES } from "$lib/constants";
 import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
+import safeRegex from "safe-regex2";
 import { applyRename, globToRegex, isEntryEmpty, matchesFilters } from "./organizer-filters";
 import type { Entry, FilterConfig, MoveConfig, RenameConfig, State } from "./organizer-types";
 
@@ -35,27 +36,46 @@ export class Organizer {
     renamePattern: "",
   });
 
-  readonly renamePatternError = $derived(
-    (() => {
-      if (!this.renameConfig.matchPattern) return "";
-      try {
-        new RegExp(this.renameConfig.matchPattern);
-        return "";
-      } catch (e) {
-        return String(e);
-      }
-    })(),
-  );
+  private readonly _renameRegexResult = $derived.by(() => {
+    if (!this.renameConfig.matchPattern) return { regex: null, error: "" };
+    try {
+      const regex = new RegExp(this.renameConfig.matchPattern);
+      if (!safeRegex(regex)) return { regex: null, error: "Pattern may cause performance issues" };
+      return { regex, error: "" };
+    } catch (e) {
+      return { regex: null, error: String(e) };
+    }
+  });
+  readonly renamePatternError = $derived(this._renameRegexResult.error);
+  private readonly _renameRegex = $derived(this._renameRegexResult.regex);
 
   private _entries: Entry[] = $state([]);
   readonly entryCount = $derived(this._entries.length);
-  readonly deleteCount = $derived(this._entries.filter((e) => !e.ignored).length);
+  readonly activeCount = $derived(this._entries.filter((e) => !e.ignored).length);
   readonly renameCount = $derived(this._entries.filter((e) => !e.ignored && this.computeNewName(e) !== null).length);
   private _scanned = $state(0);
   private _scanCount = 0;
 
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _moveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private requestId = 0;
+
+  private readonly _compiledPatterns = $derived({
+    include: this.filters.includePatterns.map(globToRegex),
+    exclude: this.filters.excludePatterns.map(globToRegex),
+  });
+
+  private readonly _scanConfig = $derived({
+    path: this.path,
+    extensionsLen: this.filters.extensions.length,
+    includePatternsLen: this.filters.includePatterns.length,
+    excludePatternsLen: this.filters.excludePatterns.length,
+    excludeFiles: this.filters.excludeFiles,
+    excludeFolders: this.filters.excludeFolders,
+    excludeSystemFiles: this.filters.excludeSystemFiles,
+    recursive: this.filters.recursive,
+    isEmpty: this.filters.isEmpty,
+  });
 
   readonly cleanup: () => void;
 
@@ -78,15 +98,7 @@ export class Organizer {
   constructor() {
     this.cleanup = $effect.root(() => {
       $effect(() => {
-        void this.path;
-        void this.filters.extensions.length;
-        void this.filters.includePatterns.length;
-        void this.filters.excludePatterns.length;
-        void this.filters.excludeFiles;
-        void this.filters.excludeFolders;
-        void this.filters.excludeSystemFiles;
-        void this.filters.recursive;
-        void this.filters.isEmpty;
+        void this._scanConfig;
         this._scan();
       });
       $effect(() => {
@@ -124,13 +136,11 @@ export class Organizer {
   }
 
   computeNewName(entry: Entry): string | null {
-    if (!this.renameConfig.matchPattern || this.renamePatternError) return null;
-    return applyRename(
-      entry.path.split("/").pop()!,
-      entry.isFile,
-      this.renameConfig.matchPattern,
-      this.renameConfig.renamePattern,
-    );
+    const regex = this._renameRegex;
+    if (!regex) return null;
+    const filename = entry.path.split("/").pop();
+    if (!filename) return null;
+    return applyRename(filename, entry.isFile, regex, this.renameConfig.renamePattern);
   }
 
   async renameAll() {
@@ -174,14 +184,16 @@ export class Organizer {
     }, 300);
   }
 
-  private _moveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
   async moveAll() {
     this._state = "moving";
     for (const entry of this._entries) {
       if (entry.ignored) continue;
       const oldFullPath = `${this.path}/${entry.path}`;
-      const basename = entry.path.split("/").pop()!;
+      const basename = entry.path.split("/").pop();
+      if (!basename) {
+        entry.status = { ok: false, message: "Invalid path" };
+        continue;
+      }
       const newFullPath = `${this.moveConfig.targetPath}/${basename}`;
       try {
         if (!(await exists(oldFullPath))) {
@@ -269,14 +281,14 @@ export class Organizer {
         let childrenWouldBeEmpty = false;
 
         if (this.filters.recursive) {
-          const childrenExcluded = this.filters.excludePatterns.some((p) => globToRegex(p).test(entryRelPath + "/_"));
+          const childrenExcluded = this._compiledPatterns.exclude.some((r) => r.test(entryRelPath + "/_"));
           if (!childrenExcluded) {
             childrenWouldBeEmpty = await this._scanDir(entryRelPath, requestId, subResult);
             if (requestId !== this.requestId) return false;
           }
         }
 
-        if (matchesFilters(entryRelPath, false, this.filters)) {
+        if (matchesFilters(entryRelPath, false, this.filters, this._compiledPatterns)) {
           let passes = !this.filters.isEmpty;
           if (!passes) {
             const currentlyEmpty = await isEntryEmpty(entryFullPath, false);
@@ -290,7 +302,7 @@ export class Organizer {
 
         result.push(...subResult);
       } else {
-        if (matchesFilters(entryRelPath, true, this.filters)) {
+        if (matchesFilters(entryRelPath, true, this.filters, this._compiledPatterns)) {
           if (!this.filters.isEmpty || (await isEntryEmpty(entryFullPath, true))) {
             result.push({ path: entryRelPath, isFile: true, ignored: false });
             entryWillBeDeleted = true;

@@ -39,7 +39,7 @@
       </label>
     </div>
     <div class="action-execute">
-      <button class="btn-danger" onclick={onDeleteAll} disabled={disabled || organizer.deleteCount === 0}
+      <button class="btn-danger" onclick={onDeleteAll} disabled={disabled || organizer.activeCount === 0}
         >Delete all</button
       >
     </div>
@@ -64,11 +64,11 @@
       <button
         onclick={onMoveAll}
         disabled={disabled ||
-          organizer.deleteCount === 0 ||
+          organizer.activeCount === 0 ||
           !organizer.moveTargetIsValid ||
           !organizer.moveConfig.targetPath}
       >
-        Move {organizer.deleteCount} of {organizer.entryCount}
+        Move {organizer.activeCount} of {organizer.entryCount}
       </button>
     </div>
   {:else if action === "rename"}

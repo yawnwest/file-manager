@@ -25,7 +25,7 @@
 
   async function deleteAll() {
     const ok = await confirm(
-      `Delete ${organizer.deleteCount} of ${organizer.entryCount} entries? This cannot be undone.`,
+      `Delete ${organizer.activeCount} of ${organizer.entryCount} entries? This cannot be undone.`,
       {
         title: "Confirm deletion",
         kind: "warning",
@@ -43,7 +43,7 @@
 
   async function moveAll() {
     const ok = await confirm(
-      `Move ${organizer.deleteCount} of ${organizer.entryCount} entries to "${organizer.moveConfig.targetPath}"?`,
+      `Move ${organizer.activeCount} of ${organizer.entryCount} entries to "${organizer.moveConfig.targetPath}"?`,
       {
         title: "Confirm move",
         kind: "warning",
@@ -72,9 +72,9 @@
       disabled={disabled && organizer.state !== "scanning"}
     />
     <button onclick={openFolder} {disabled}>Open …</button>
-    <button onclick={reloadFolder} {disabled}>↺</button>
+    <button onclick={reloadFolder} {disabled} aria-label="Reload folder">↺</button>
   </div>
-  <p class="error path-error">{organizer.pathError}</p>
+  <p class="error path-error" aria-live="polite">{organizer.pathError}</p>
 </section>
 
 <FilterPanel filters={organizer.filters} {disabled} />

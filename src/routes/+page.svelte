@@ -1,11 +1,11 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import OrganizerView from "$lib/components/OrganizerView.svelte";
   import UpdateChecker from "$lib/components/UpdateChecker.svelte";
   import { Zoom } from "$lib/states/zoom.svelte";
 
   const zoom = new Zoom();
-
-  let activeTab = $state<"organize" | "watch" | "diff">("organize");
+  onDestroy(zoom.cleanup);
 </script>
 
 <svelte:window onkeydown={zoom.handleKeydown} />
@@ -13,24 +13,16 @@
 <UpdateChecker />
 
 <main>
-  <nav class="tabs">
-    <button class:active={activeTab === "organize"} onclick={() => (activeTab = "organize")}>Organizer</button>
-    <!-- <button class:active={activeTab === "watch"} onclick={() => (activeTab = "watch")}>Watcher</button>
-    <button class:active={activeTab === "diff"} onclick={() => (activeTab = "diff")}>Differ</button> -->
+  <div class="tabs" role="tablist">
+    <span class="tab active" role="tab" aria-selected="true">Organizer</span>
     {#if zoom.value !== 1}
       <button class="zoom-reset" onclick={() => (zoom.value = 1)}>
         {Math.round(zoom.value * 100)}%
       </button>
     {/if}
-  </nav>
+  </div>
 
-  {#if activeTab === "organize"}
-    <OrganizerView />
-  {:else if activeTab === "watch"}
-    <!-- <RenameView /> -->
-  {:else}
-    <!-- <CleanView /> -->
-  {/if}
+  <OrganizerView />
 </main>
 
 <style>
@@ -46,19 +38,23 @@
     padding: 0 1rem;
   }
 
-  .tabs button {
+  .tabs button,
+  .tabs .tab {
     background: none;
     border: none;
     border-radius: 0;
     border-bottom: 2px solid transparent;
     padding: 0.5rem 1rem;
-    cursor: pointer;
     font-size: 0.9rem;
     margin-bottom: -1px;
     color: var(--color-foreground);
   }
 
-  .tabs button.active {
+  .tabs button {
+    cursor: pointer;
+  }
+
+  .tabs .active {
     border-bottom-color: currentColor;
     font-weight: bold;
   }

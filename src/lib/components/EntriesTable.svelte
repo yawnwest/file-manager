@@ -15,16 +15,16 @@
     {#if action === "rename"}
       {organizer.renameCount} of {organizer.entryCount} matching
     {:else}
-      {organizer.deleteCount} of {organizer.entryCount} entries
+      {organizer.activeCount} of {organizer.entryCount} entries
     {/if}
   </p>
   <table>
     <thead>
       <tr>
-        <th class="col-ignore">Ignore</th>
-        <th>Path</th>
-        {#if action === "rename"}<th>New name</th>{/if}
-        <th class="col-status">Status</th>
+        <th class="col-ignore" scope="col">Ignore</th>
+        <th scope="col">Path</th>
+        {#if action === "rename"}<th scope="col">New name</th>{/if}
+        <th class="col-status" scope="col">Status</th>
       </tr>
     </thead>
     <tbody>

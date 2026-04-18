@@ -12,14 +12,7 @@ export async function isEntryEmpty(fullPath: string, isFile: boolean): Promise<b
   }
 }
 
-export function applyRename(name: string, isFile: boolean, matchPattern: string, renamePattern: string): string | null {
-  let regex: RegExp;
-  try {
-    regex = new RegExp(matchPattern);
-  } catch {
-    return null;
-  }
-
+export function applyRename(name: string, isFile: boolean, regex: RegExp, renamePattern: string): string | null {
   const match = regex.exec(name);
   if (!match) return null;
 
@@ -42,7 +35,12 @@ export function globToRegex(pattern: string): RegExp {
   return new RegExp(`^${escaped.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
 }
 
-export function matchesFilters(relPath: string, isFile: boolean, f: FilterConfig): boolean {
+export function matchesFilters(
+  relPath: string,
+  isFile: boolean,
+  f: FilterConfig,
+  compiled: { include: RegExp[]; exclude: RegExp[] },
+): boolean {
   if (f.excludeFiles && isFile) return false;
   if (f.excludeFolders && !isFile) return false;
 
@@ -56,12 +54,12 @@ export function matchesFilters(relPath: string, isFile: boolean, f: FilterConfig
     if (!f.extensions.some((e) => e.toLowerCase() === ext)) return false;
   }
 
-  if (f.includePatterns.length > 0) {
-    if (!f.includePatterns.some((p) => globToRegex(p).test(relPath))) return false;
+  if (compiled.include.length > 0) {
+    if (!compiled.include.some((r) => r.test(relPath))) return false;
   }
 
-  if (f.excludePatterns.length > 0) {
-    if (f.excludePatterns.some((p) => globToRegex(p).test(relPath))) return false;
+  if (compiled.exclude.length > 0) {
+    if (compiled.exclude.some((r) => r.test(relPath))) return false;
   }
 
   return true;
