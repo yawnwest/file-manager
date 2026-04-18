@@ -25,6 +25,11 @@
     "*.{ts,svelte,svelte.ts,js,mjs,json,md,yml,html,css}": "prettier --write",
     "*.{ts,svelte,svelte.ts,js,mjs}": "eslint --fix"
   },
+  "pnpm": {
+    "overrides": {
+      "cookie": "^0.7.0"
+    }
+  },
   "license": "MIT",
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
