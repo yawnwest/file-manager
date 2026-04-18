@@ -8,6 +8,42 @@
     organizer: Organizer;
     action: "delete" | "move" | "rename";
   } = $props();
+
+  const ROW_HEIGHT = 30;
+  const OVERSCAN = 5;
+
+  let scrollEl: HTMLElement | undefined = $state();
+  let scrollTop = $state(0);
+  let containerHeight = $state(400);
+
+  $effect(() => {
+    if (!scrollEl) return;
+    const ro = new ResizeObserver(() => {
+      containerHeight = scrollEl!.clientHeight;
+    });
+    ro.observe(scrollEl);
+    containerHeight = scrollEl.clientHeight;
+    return () => ro.disconnect();
+  });
+
+  function onScroll(e: Event) {
+    scrollTop = (e.currentTarget as HTMLElement).scrollTop;
+  }
+
+  const virtualState = $derived.by(() => {
+    const entries = organizer.entries;
+    const total = entries.length;
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const end = Math.min(total, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + OVERSCAN);
+    return {
+      start,
+      offsetTop: start * ROW_HEIGHT,
+      offsetBottom: (total - end) * ROW_HEIGHT,
+      visible: entries.slice(start, end),
+    };
+  });
+
+  const colSpan = $derived(action === "rename" ? 4 : 3);
 </script>
 
 <section class="entries">
@@ -18,43 +54,51 @@
       {organizer.activeCount} of {organizer.entryCount} entries
     {/if}
   </p>
-  <table>
-    <thead>
-      <tr>
-        <th class="col-ignore" scope="col">Ignore</th>
-        <th scope="col">Path</th>
-        {#if action === "rename"}<th scope="col">New name</th>{/if}
-        <th class="col-status" scope="col">Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each organizer.entries as entry (entry.path)}
-        {@const newName = action === "rename" ? organizer.computeNewName(entry) : null}
-        <tr class:ignored={entry.ignored}>
-          <td class="col-ignore"><input type="checkbox" bind:checked={entry.ignored} /></td>
-          <td>{entry.isFile ? "📄" : "📁"} {entry.path}</td>
-          {#if action === "rename"}
-            <td class="col-new-name">
-              {#if newName !== null}
-                <span class="new-name">{newName}</span>
-              {:else}
-                <span class="no-match">—</span>
+  <div class="scroll-container" bind:this={scrollEl} onscroll={onScroll}>
+    <table>
+      <thead>
+        <tr>
+          <th class="col-ignore" scope="col">Ignore</th>
+          <th scope="col">Path</th>
+          {#if action === "rename"}<th scope="col">New name</th>{/if}
+          <th class="col-status" scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#if virtualState.offsetTop > 0}
+          <tr class="spacer" style="height: {virtualState.offsetTop}px"><td colspan={colSpan}></td></tr>
+        {/if}
+        {#each virtualState.visible as entry, i (entry.path)}
+          {@const newName = action === "rename" ? organizer.computeNewName(entry) : null}
+          <tr class:ignored={entry.ignored} class:even={(virtualState.start + i) % 2 === 1}>
+            <td class="col-ignore"><input type="checkbox" bind:checked={entry.ignored} /></td>
+            <td class="col-path">{entry.isFile ? "📄" : "📁"} {entry.path}</td>
+            {#if action === "rename"}
+              <td class="col-new-name">
+                {#if newName !== null}
+                  <span class="new-name">{newName}</span>
+                {:else}
+                  <span class="no-match">—</span>
+                {/if}
+              </td>
+            {/if}
+            <td class="col-status">
+              {#if entry.status?.ok === true}
+                <span class="status-ok">
+                  {action === "rename" ? "Renamed" : action === "move" ? "Moved" : "Deleted"}
+                </span>
+              {:else if entry.status?.ok === false}
+                <span class="status-error">{entry.status.message}</span>
               {/if}
             </td>
-          {/if}
-          <td class="col-status">
-            {#if entry.status?.ok === true}
-              <span class="status-ok">
-                {action === "rename" ? "Renamed" : action === "move" ? "Moved" : "Deleted"}
-              </span>
-            {:else if entry.status?.ok === false}
-              <span class="status-error">{entry.status.message}</span>
-            {/if}
-          </td>
-        </tr>
-      {/each}
-    </tbody>
-  </table>
+          </tr>
+        {/each}
+        {#if virtualState.offsetBottom > 0}
+          <tr class="spacer" style="height: {virtualState.offsetBottom}px"><td colspan={colSpan}></td></tr>
+        {/if}
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <style>
@@ -65,13 +109,31 @@
   }
 
   .entries {
-    padding: 0rem 1rem;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
   }
 
   table {
     width: 100%;
     table-layout: fixed;
     border-collapse: collapse;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    background-color: var(--color-background);
+    z-index: 1;
   }
 
   table th {
@@ -86,8 +148,12 @@
     overflow: hidden;
   }
 
-  table tbody tr:nth-child(even) {
+  table tbody tr.even {
     background-color: color-mix(in srgb, var(--color-surface) 95%, var(--color-foreground));
+  }
+
+  .spacer td {
+    padding: 0;
   }
 
   .col-ignore {
@@ -97,6 +163,12 @@
 
   tr.ignored td {
     opacity: 0.4;
+  }
+
+  .col-path {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .col-new-name {

@@ -1,6 +1,7 @@
 import { SYSTEM_FILES } from "$lib/constants";
 import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
 import safeRegex from "safe-regex2";
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { applyRename, globToRegex, isEntryEmpty, matchesFilters } from "./organizer-filters";
 import type { Entry, FilterConfig, MoveConfig, RenameConfig, State } from "./organizer-types";
 
@@ -61,8 +62,8 @@ export class Organizer {
   private requestId = 0;
 
   private readonly _compiledPatterns = $derived({
-    include: this.filters.includePatterns.map(globToRegex),
-    exclude: this.filters.excludePatterns.map(globToRegex),
+    include: this.filters.includePatterns.map(globToRegex).filter((r) => r !== null),
+    exclude: this.filters.excludePatterns.map(globToRegex).filter((r) => r !== null),
   });
 
   private readonly _scanConfig = $derived({
@@ -114,25 +115,28 @@ export class Organizer {
 
   async deleteAll() {
     this._state = "deleting";
-    for (const entry of [...this._entries].reverse()) {
-      if (entry.ignored) continue;
-      const fullPath = `${this.path}/${entry.path}`;
-      try {
-        if (!(await exists(fullPath))) {
-          entry.status = { ok: false, message: "Not found" };
-          continue;
+    try {
+      for (const entry of [...this._entries].reverse()) {
+        if (entry.ignored) continue;
+        const fullPath = `${this.path}/${entry.path}`;
+        try {
+          if (!(await exists(fullPath))) {
+            entry.status = { ok: false, message: "Not found" };
+            continue;
+          }
+          if (this.filters.isEmpty && !entry.isFile && !(await isEntryEmpty(fullPath, false))) {
+            entry.status = { ok: false, message: "Not empty" };
+            continue;
+          }
+          await remove(fullPath, { recursive: true });
+          entry.status = { ok: true };
+        } catch (e) {
+          entry.status = { ok: false, message: String(e) };
         }
-        if (this.filters.isEmpty && !entry.isFile && !(await isEntryEmpty(fullPath, false))) {
-          entry.status = { ok: false, message: "Not empty" };
-          continue;
-        }
-        await remove(fullPath, { recursive: true });
-        entry.status = { ok: true };
-      } catch (e) {
-        entry.status = { ok: false, message: String(e) };
       }
+    } finally {
+      this._state = "idle";
     }
-    this._state = "idle";
   }
 
   computeNewName(entry: Entry): string | null {
@@ -145,27 +149,55 @@ export class Organizer {
 
   async renameAll() {
     this._state = "renaming";
-    for (const entry of this._entries) {
-      if (entry.ignored) continue;
-      const newName = this.computeNewName(entry);
-      if (newName === null) continue;
-
-      const oldFullPath = `${this.path}/${entry.path}`;
-      const dir = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/") + 1) : "";
-      const newFullPath = `${this.path}/${dir}${newName}`;
-
-      try {
-        if (!(await exists(oldFullPath))) {
-          entry.status = { ok: false, message: "Not found" };
-          continue;
+    try {
+      const targetMap = new SvelteMap<string, Entry>();
+      for (const entry of this._entries) {
+        if (entry.ignored) continue;
+        const newName = this.computeNewName(entry);
+        if (newName === null) continue;
+        const dir = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/") + 1) : "";
+        const newFullPath = `${this.path}/${dir}${newName}`;
+        if (newFullPath === `${this.path}/${entry.path}`) continue;
+        if (targetMap.has(newFullPath)) {
+          entry.status = { ok: false, message: "Name conflict with another entry" };
+          targetMap.get(newFullPath)!.status = { ok: false, message: "Name conflict with another entry" };
+        } else {
+          targetMap.set(newFullPath, entry);
         }
-        await rename(oldFullPath, newFullPath);
-        entry.status = { ok: true };
-      } catch (e) {
-        entry.status = { ok: false, message: String(e) };
       }
+
+      const sourcePaths = new SvelteSet(
+        this._entries.filter((e) => !e.ignored && this.computeNewName(e) !== null).map((e) => `${this.path}/${e.path}`),
+      );
+      for (const [newFullPath, entry] of targetMap) {
+        if (entry.status) continue;
+        if (!sourcePaths.has(newFullPath) && (await exists(newFullPath))) {
+          entry.status = { ok: false, message: "Already exists" };
+        }
+      }
+
+      for (const entry of this._entries) {
+        if (entry.ignored) continue;
+        if (entry.status) continue;
+        const newName = this.computeNewName(entry);
+        if (newName === null) continue;
+        const oldFullPath = `${this.path}/${entry.path}`;
+        const dir = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/") + 1) : "";
+        const newFullPath = `${this.path}/${dir}${newName}`;
+        try {
+          if (!(await exists(oldFullPath))) {
+            entry.status = { ok: false, message: "Not found" };
+            continue;
+          }
+          await rename(oldFullPath, newFullPath);
+          entry.status = { ok: true };
+        } catch (e) {
+          entry.status = { ok: false, message: String(e) };
+        }
+      }
+    } finally {
+      this._state = "idle";
     }
-    this._state = "idle";
   }
 
   private _validateMoveTarget() {
@@ -186,27 +218,52 @@ export class Organizer {
 
   async moveAll() {
     this._state = "moving";
-    for (const entry of this._entries) {
-      if (entry.ignored) continue;
-      const oldFullPath = `${this.path}/${entry.path}`;
-      const basename = entry.path.split("/").pop();
-      if (!basename) {
-        entry.status = { ok: false, message: "Invalid path" };
-        continue;
+    try {
+      const targetMap = new SvelteMap<string, Entry>();
+      for (const entry of this._entries) {
+        if (entry.ignored) continue;
+        const basename = entry.path.split("/").pop();
+        if (!basename) continue;
+        const newFullPath = `${this.moveConfig.targetPath}/${basename}`;
+        if (targetMap.has(newFullPath)) {
+          entry.status = { ok: false, message: "Name conflict with another entry" };
+          targetMap.get(newFullPath)!.status = { ok: false, message: "Name conflict with another entry" };
+        } else {
+          targetMap.set(newFullPath, entry);
+        }
       }
-      const newFullPath = `${this.moveConfig.targetPath}/${basename}`;
-      try {
-        if (!(await exists(oldFullPath))) {
-          entry.status = { ok: false, message: "Not found" };
+
+      for (const [newFullPath, entry] of targetMap) {
+        if (entry.status) continue;
+        if (await exists(newFullPath)) {
+          entry.status = { ok: false, message: "Already exists" };
+        }
+      }
+
+      for (const entry of this._entries) {
+        if (entry.ignored) continue;
+        if (entry.status) continue;
+        const oldFullPath = `${this.path}/${entry.path}`;
+        const basename = entry.path.split("/").pop();
+        if (!basename) {
+          entry.status = { ok: false, message: "Invalid path" };
           continue;
         }
-        await rename(oldFullPath, newFullPath);
-        entry.status = { ok: true };
-      } catch (e) {
-        entry.status = { ok: false, message: String(e) };
+        const newFullPath = `${this.moveConfig.targetPath}/${basename}`;
+        try {
+          if (!(await exists(oldFullPath))) {
+            entry.status = { ok: false, message: "Not found" };
+            continue;
+          }
+          await rename(oldFullPath, newFullPath);
+          entry.status = { ok: true };
+        } catch (e) {
+          entry.status = { ok: false, message: String(e) };
+        }
       }
+    } finally {
+      this._state = "idle";
     }
-    this._state = "idle";
   }
 
   private _scan() {

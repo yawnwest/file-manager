@@ -61,37 +61,48 @@
   }
 </script>
 
-<section class="folder-selector">
-  <div class="field">
-    <label for="folder-input">Folder</label>
-    <input
-      id="folder-input"
-      placeholder="Enter a folder path..."
-      bind:value={organizer.path}
-      class:invalid={!organizer.pathIsValid}
-      disabled={disabled && organizer.state !== "scanning"}
-    />
-    <button onclick={openFolder} {disabled}>Open …</button>
-    <button onclick={reloadFolder} {disabled} aria-label="Reload folder">↺</button>
-  </div>
-  <p class="error path-error" aria-live="polite">{organizer.pathError}</p>
-</section>
+<div class="view">
+  <section class="folder-selector">
+    <div class="field">
+      <label for="folder-input">Folder</label>
+      <input
+        id="folder-input"
+        placeholder="Enter a folder path..."
+        bind:value={organizer.path}
+        class:invalid={!organizer.pathIsValid}
+        aria-invalid={!organizer.pathIsValid || undefined}
+        disabled={disabled && organizer.state !== "scanning"}
+      />
+      <button onclick={openFolder} {disabled}>Open …</button>
+      <button onclick={reloadFolder} {disabled} aria-label="Reload folder">↺</button>
+    </div>
+    <p class="error path-error" aria-live="polite">{organizer.pathError}</p>
+  </section>
 
-<FilterPanel filters={organizer.filters} {disabled} />
+  <FilterPanel filters={organizer.filters} {disabled} />
 
-<ActionPanel
-  bind:action
-  {organizer}
-  {disabled}
-  onDeleteAll={deleteAll}
-  onMoveAll={moveAll}
-  onRenameAll={renameAll}
-  onOpenMoveTarget={openMoveTarget}
-/>
+  <ActionPanel
+    bind:action
+    {organizer}
+    {disabled}
+    onDeleteAll={deleteAll}
+    onMoveAll={moveAll}
+    onRenameAll={renameAll}
+    onOpenMoveTarget={openMoveTarget}
+  />
 
-<EntriesTable {organizer} {action} />
+  <EntriesTable {organizer} {action} />
+</div>
 
 <style>
+  .view {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
   .folder-selector {
     display: flex;
     flex-direction: column;

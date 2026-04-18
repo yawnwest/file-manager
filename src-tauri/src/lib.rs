@@ -82,7 +82,16 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         let menu = Menu::default(app.handle())?;
 
         if let Some(MenuItemKind::Submenu(app_submenu)) = menu.items()?.into_iter().next() {
-            app_submenu.remove_at(0)?;
+            let items = app_submenu.items()?;
+            let about_idx = items.iter().position(|item| {
+                matches!(
+                    item,
+                    MenuItemKind::Predefined(p) if p.text().is_ok_and(|t| t.contains("About"))
+                )
+            });
+            if let Some(idx) = about_idx {
+                app_submenu.remove_at(idx)?;
+            }
             app_submenu.insert(&about, 0)?;
         }
 

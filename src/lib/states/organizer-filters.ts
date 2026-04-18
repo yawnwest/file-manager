@@ -1,5 +1,6 @@
 import { SYSTEM_FILES } from "$lib/constants";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
+import safeRegex from "safe-regex2";
 import type { FilterConfig } from "./organizer-types";
 
 export async function isEntryEmpty(fullPath: string, isFile: boolean): Promise<boolean> {
@@ -30,9 +31,10 @@ export function applyRename(name: string, isFile: boolean, regex: RegExp, rename
   return newStem;
 }
 
-export function globToRegex(pattern: string): RegExp {
+export function globToRegex(pattern: string): RegExp | null {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escaped.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
+  const regex = new RegExp(`^${escaped.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
+  return safeRegex(regex) ? regex : null;
 }
 
 export function matchesFilters(

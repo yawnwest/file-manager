@@ -17,7 +17,7 @@ export class Zoom {
   }
 
   handleKeydown = (event: KeyboardEvent) => {
-    if (event.metaKey) {
+    if (event.metaKey || event.ctrlKey) {
       if (event.key === "=" || event.key === "+") {
         event.preventDefault();
         this.value = Math.min(+(this.value + 0.1).toFixed(1), 3);
@@ -32,7 +32,7 @@ export class Zoom {
   };
 
   handleWheel = (event: WheelEvent) => {
-    if (event.metaKey) {
+    if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
       const delta = event.deltaY > 0 ? -0.1 : 0.1;
       this.value = Math.min(Math.max(+(this.value + delta).toFixed(1), 0.5), 3);
