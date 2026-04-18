@@ -1,6 +1,8 @@
 include!(concat!(env!("OUT_DIR"), "/dep_licenses.rs"));
 
-use tauri::menu::{AboutMetadataBuilder, Menu, MenuItemKind, PredefinedMenuItem};
+#[cfg(target_os = "macos")]
+use tauri::menu::MenuItemKind;
+use tauri::menu::{AboutMetadataBuilder, Menu, PredefinedMenuItem};
 
 pub fn run() {
     tauri::Builder::default()
