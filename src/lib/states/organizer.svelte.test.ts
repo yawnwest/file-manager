@@ -106,7 +106,7 @@ describe("Organizer", () => {
     it("sets pathError when stat throws", async () => {
       mockStat.mockRejectedValue(new Error("no such file"));
       await triggerScan();
-      expect(organizer.pathError).toBe("Error: no such file");
+      expect(organizer.pathError).toBe("no such file");
       expect(organizer.entries).toEqual([]);
     });
 
@@ -271,7 +271,7 @@ describe("Organizer", () => {
     it("marks entry with error message when remove throws", async () => {
       mockRemove.mockRejectedValue(new Error("permission denied"));
       await organizer.deleteAll();
-      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Error: permission denied" });
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "permission denied" });
     });
 
     it("does not start a second execution when already executing", async () => {
@@ -477,7 +477,7 @@ describe("Organizer", () => {
     it("marks entry with error message when rename throws", async () => {
       vi.mocked(rename).mockRejectedValue(new Error("permission denied"));
       await organizer.renameAll();
-      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Error: permission denied" });
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "permission denied" });
     });
 
     it("does not start a second execution when already executing", async () => {
@@ -568,7 +568,7 @@ describe("Organizer", () => {
       mockExists.mockImplementation(async (p) => String(p).startsWith("/test/"));
       vi.mocked(rename).mockRejectedValue(new Error("permission denied"));
       await organizer.moveAll();
-      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Error: permission denied" });
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "permission denied" });
     });
 
     it("does not start a second execution when already executing", async () => {

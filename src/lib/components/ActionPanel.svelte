@@ -82,7 +82,7 @@
           !organizer.moveTargetIsValid ||
           !organizer.moveConfig.targetPath}
       >
-        Move {organizer.activeCount} of {organizer.entryCount}
+        Move all
       </button>
     </div>
   {:else if action === "rename"}
@@ -157,9 +157,7 @@
       <p class="error">{organizer.renamePatternError}</p>
     {/if}
     <div class="action-execute">
-      <button onclick={onRenameAll} disabled={disabledExecute || organizer.renameCount === 0}>
-        Rename {organizer.renameCount} of {organizer.entryCount}
-      </button>
+      <button onclick={onRenameAll} disabled={disabledExecute || organizer.renameCount === 0}> Rename all </button>
     </div>
   {/if}
 </section>

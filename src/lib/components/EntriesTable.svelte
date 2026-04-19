@@ -47,13 +47,11 @@
 
   const colSpan = $derived(action === "rename" ? 4 : 3);
 
-  let expanded = $state(new Set<string>());
+  let expanded = new SvelteSet<string>();
 
   function toggleExpand(path: string) {
-    const next = new SvelteSet(expanded);
-    if (next.has(path)) next.delete(path);
-    else next.add(path);
-    expanded = next;
+    if (expanded.has(path)) expanded.delete(path);
+    else expanded.add(path);
   }
 </script>
 

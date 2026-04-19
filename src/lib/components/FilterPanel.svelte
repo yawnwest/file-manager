@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { parseList } from "$lib/utils/parse-list";
   import type { FilterConfig } from "$lib/states/organizer-types";
 
   let {
@@ -6,13 +7,6 @@
     disabled,
     lockedExcludeFolders = false,
   }: { filters: FilterConfig; disabled: boolean; lockedExcludeFolders?: boolean } = $props();
-
-  function parseList(value: string): string[] {
-    return value
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }
 </script>
 
 <section class="filters">

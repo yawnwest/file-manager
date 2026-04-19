@@ -9,6 +9,12 @@ import type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State }
 export type { EntryStatus } from "./organizer-types";
 export type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State };
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+const DEBOUNCE_MS = 300;
+
 export class Organizer {
   // --- Path ---
   path = $state("");
@@ -46,7 +52,7 @@ export class Organizer {
       if (!safeRegex(regex)) return { regex: null, error: "Pattern may cause performance issues" };
       return { regex, error: "" };
     } catch (e) {
-      return { regex: null, error: String(e) };
+      return { regex: null, error: errMsg(e) };
     }
   });
   readonly renamePatternError = $derived(this._renameRegexResult.error);
@@ -163,7 +169,7 @@ export class Organizer {
           await remove(fullPath, { recursive: true });
           entry.status = { ok: true };
         } catch (e) {
-          entry.status = { ok: false, message: String(e) };
+          entry.status = { ok: false, message: errMsg(e) };
         }
       }
     } finally {
@@ -211,7 +217,7 @@ export class Organizer {
           await rename(oldFullPath, newFullPath);
           entry.status = { ok: true };
         } catch (e) {
-          entry.status = { ok: false, message: String(e) };
+          entry.status = { ok: false, message: errMsg(e) };
         }
       }
     } finally {
@@ -253,7 +259,7 @@ export class Organizer {
           await rename(oldFullPath, newFullPath);
           entry.status = { ok: true };
         } catch (e) {
-          entry.status = { ok: false, message: String(e) };
+          entry.status = { ok: false, message: errMsg(e) };
         }
       }
     } finally {
@@ -274,9 +280,9 @@ export class Organizer {
         const info = await stat(this.moveConfig.targetPath);
         this._moveTargetError = info.isDirectory ? "" : "Path is not a directory";
       } catch (e) {
-        this._moveTargetError = String(e);
+        this._moveTargetError = errMsg(e);
       }
-    }, 300);
+    }, DEBOUNCE_MS);
   }
 
   private _scan() {
@@ -295,7 +301,7 @@ export class Organizer {
     }
 
     const currentId = ++this.requestId;
-    this.debounceTimer = setTimeout(() => void this._runScan(currentId), 300);
+    this.debounceTimer = setTimeout(() => void this._runScan(currentId), DEBOUNCE_MS);
   }
 
   private async _runScan(currentId: number) {
@@ -319,7 +325,7 @@ export class Organizer {
       this._pathError = "";
     } catch (e) {
       if (currentId !== this.requestId) return;
-      this._pathError = String(e);
+      this._pathError = errMsg(e);
       this._entries = [];
     } finally {
       if (currentId === this.requestId) {
