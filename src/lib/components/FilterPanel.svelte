@@ -31,7 +31,7 @@
       <label for="include-patterns">Include</label>
       <input
         id="include-patterns"
-        placeholder="*.mkv, src/*, *.test.*"
+        placeholder="*.mkv, dir/*, *.xyz.*"
         {disabled}
         value={filters.includePatterns.join(", ")}
         oninput={(e) => (filters.includePatterns = parseList(e.currentTarget.value))}
@@ -41,7 +41,7 @@
       <label for="filter-exclude-patterns">Exclude</label>
       <input
         id="filter-exclude-patterns"
-        placeholder="*.tmp, .git, **/node_modules"
+        placeholder="*.mov, .hidden, **/dir"
         {disabled}
         value={filters.excludePatterns.join(", ")}
         oninput={(e) => (filters.excludePatterns = parseList(e.currentTarget.value))}
@@ -51,7 +51,7 @@
 </section>
 
 <style>
-  input:not([type="checkbox"]):not([type="radio"]) {
+  .filter-field input {
     flex: 1;
   }
 
@@ -59,7 +59,7 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    gap: 0.8rem;
+    gap: 0.75rem;
     margin: 0.75rem 1rem;
     padding: 0.75rem 1rem;
     background-color: color-mix(in srgb, var(--color-surface) 80%, var(--color-border));
