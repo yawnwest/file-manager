@@ -9,6 +9,7 @@ A desktop file batch-renaming tool.
 - Match files using regex capture groups
 - Rename files using a pattern with group references (`$<groupName>`)
 - Insert captured groups into the rename pattern with one click
+- Move files to a target folder
 - Remove empty folders
 - Auto-update on launch
 

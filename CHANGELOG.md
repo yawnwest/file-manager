@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-19
+
+### Added
+
+- Move files to a target folder
+- Dark mode
+
+### Changed
+
+- Reworked scan filters with improved filter options (e.g. exclude folders)
+
+### Fixed
+
+- Zoom out did not work correctly
+- Update process did not complete correctly
+
+### Performance
+
+- Improved counting of empty directories
+
 ## [0.2.1] - 2026-04-02
 
 ### Fixed
@@ -27,6 +47,7 @@
 - Auto-updater: checks for new releases on launch and prompts to install
 - Zoom in/out via keyboard shortcuts
 
+[0.3.0]: https://github.com/yawnwest/file-manager/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/yawnwest/file-manager/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/yawnwest/file-manager/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yawnwest/file-manager/releases/tag/v0.1.0
