@@ -74,7 +74,7 @@
       />
       <button onclick={openFolder} disabled={organizer.isExecuting}>Open …</button>
       <button
-        onclick={organizer.reload}
+        onclick={() => organizer.reload()}
         disabled={organizer.state !== "idle" && organizer.state !== "done" && organizer.state !== "scanning"}
         aria-label="Reload folder">↺</button
       >
