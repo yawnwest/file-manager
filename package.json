@@ -37,7 +37,7 @@
     "@tauri-apps/plugin-fs": "~2.5.0",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-updater": "^2.10.1",
-    "safe-regex2": "^5.1.0"
+    "safe-regex2": "^5.1.1"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
@@ -47,7 +47,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^25.6.0",
-    "eslint": "^10.2.0",
+    "eslint": "^10.2.1",
     "eslint-plugin-svelte": "^3.17.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
@@ -55,7 +55,7 @@
     "prettier-plugin-svelte": "^3.5.1",
     "svelte": "^5.55.4",
     "svelte-check": "^4.4.6",
-    "typescript": "~6.0.2",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.8",
     "vitest": "^4.1.4"
