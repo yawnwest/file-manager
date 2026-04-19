@@ -7,5 +7,6 @@ allow-dependencies-licenses:
   - "pkg:npm/@csstools/css-color-parser"
   - "pkg:npm/@tauri-apps/plugin-updater"
   - "pkg:npm/semver"
+  - "pkg:cargo/semver"
   - "pkg:cargo/tauri-plugin-process"
   - "pkg:cargo/tauri-plugin-window-state"
