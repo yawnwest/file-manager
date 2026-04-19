@@ -1,0 +1,11 @@
+allow-ghsas:
+  - GHSA-cq8v-f236-94qc
+
+allow-dependencies-licenses:
+  - dependency-name: "pnpm/action-setup"
+  - dependency-name: "@tauri-apps/api"
+  - dependency-name: "@csstools/css-color-parser"
+  - dependency-name: "@tauri-apps/plugin-updater"
+  - dependency-name: "semver"
+  - dependency-name: "tauri-plugin-process"
+  - dependency-name: "tauri-plugin-window-state"
