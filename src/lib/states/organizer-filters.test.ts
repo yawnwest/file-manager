@@ -16,7 +16,6 @@ function filters(overrides: Partial<FilterConfig> = {}): FilterConfig {
     excludeFiles: false,
     excludeFolders: false,
     excludeSystemFiles: false,
-    recursive: false,
     isEmpty: false,
     ...overrides,
   };

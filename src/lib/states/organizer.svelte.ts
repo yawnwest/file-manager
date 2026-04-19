@@ -4,39 +4,41 @@ import safeRegex from "safe-regex2";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { globToRegex, isEntryEmpty, matchesFilters } from "./organizer-filters";
 import { computeNewName } from "./organizer-rename";
-import type { Entry, FilterConfig, MoveConfig, RenameConfig, State } from "./organizer-types";
+import type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State } from "./organizer-types";
 
 export type { EntryStatus } from "./organizer-types";
-export type { Entry, FilterConfig, MoveConfig, RenameConfig, State };
+export type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State };
 
 export class Organizer {
+  // --- Path ---
   path = $state("");
+  private _pathError = $state("");
+  readonly pathIsValid = $derived(!this._pathError);
+
+  // --- Scan & filter config ---
+  scanConfig: ScanConfig = $state({ recursive: false });
   filters: FilterConfig = $state({
     includePatterns: [],
     excludePatterns: [],
     excludeFiles: false,
     excludeFolders: false,
     excludeSystemFiles: true,
-    recursive: false,
     isEmpty: false,
   });
-  private _state: State = $state("idle");
-  private _pathError = $state("");
-  readonly pathIsValid = $derived(!this._pathError);
 
+  // --- Operation state ---
+  private _state: State = $state("idle");
+
+  // --- Move config ---
   moveConfig: MoveConfig = $state({ targetPath: "" });
   private _moveTargetError = $state("");
   readonly moveTargetIsValid = $derived(!this._moveTargetError);
 
-  get moveTargetError() {
-    return this._moveTargetError;
-  }
-
+  // --- Rename config ---
   renameConfig: RenameConfig = $state({
     matchPattern: "",
     renamePattern: "",
   });
-
   private readonly _renameRegexResult = $derived.by(() => {
     if (!this.renameConfig.matchPattern) return { regex: null, error: "" };
     try {
@@ -50,6 +52,7 @@ export class Organizer {
   readonly renamePatternError = $derived(this._renameRegexResult.error);
   private readonly _renameRegex = $derived(this._renameRegexResult.regex);
 
+  // --- Entries ---
   private _entries: Entry[] = $state([]);
   readonly entryCount = $derived(this._entries.length);
   readonly activeCount = $derived(this._entries.filter((e) => !e.ignored).length);
@@ -58,30 +61,35 @@ export class Organizer {
       (e) => !e.ignored && computeNewName(e, this._renameRegex, this.renameConfig.renamePattern) !== null,
     ).length,
   );
+
+  // --- Scan progress ---
   private _scanned = $state(0);
   private _scanCount = 0;
 
+  // --- Internal timers & request tracking ---
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private _moveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private moveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private requestId = 0;
 
+  // --- Derived scan inputs ---
   private readonly _compiledPatterns = $derived({
     include: this.filters.includePatterns.map(globToRegex).filter((r) => r !== null),
     exclude: this.filters.excludePatterns.map(globToRegex).filter((r) => r !== null),
   });
-
   private readonly _scanConfig = $derived({
     path: this.path,
-    includePatternsLen: this.filters.includePatterns.length,
-    excludePatternsLen: this.filters.excludePatterns.length,
+    includePatterns: this.filters.includePatterns.join("\0"),
+    excludePatterns: this.filters.excludePatterns.join("\0"),
     excludeFiles: this.filters.excludeFiles,
     excludeFolders: this.filters.excludeFolders,
     excludeSystemFiles: this.filters.excludeSystemFiles,
-    recursive: this.filters.recursive,
+    recursive: this.scanConfig.recursive,
     isEmpty: this.filters.isEmpty,
   });
 
   readonly cleanup: () => void;
+
+  // --- Getters ---
 
   get state() {
     return this._state;
@@ -91,6 +99,14 @@ export class Organizer {
     return this._pathError;
   }
 
+  get moveTargetError() {
+    return this._moveTargetError;
+  }
+
+  get renameRegex() {
+    return this._renameRegex;
+  }
+
   get entries() {
     return this._entries;
   }
@@ -98,6 +114,12 @@ export class Organizer {
   get scanned() {
     return this._scanned;
   }
+
+  get isExecuting() {
+    return this._state === "deleting" || this._state === "renaming" || this._state === "moving";
+  }
+
+  // --- Constructor ---
 
   constructor() {
     this.cleanup = $effect.root(() => {
@@ -112,15 +134,19 @@ export class Organizer {
     });
   }
 
+  // --- Public methods ---
+
   reload() {
-    this._scan();
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+    void this._runScan(++this.requestId);
   }
 
-  get renameRegex() {
-    return this._renameRegex;
-  }
-
+  // TODO review
   async deleteAll() {
+    if (this.isExecuting) return;
     this._state = "deleting";
     try {
       for (const entry of [...this._entries].reverse()) {
@@ -146,17 +172,23 @@ export class Organizer {
     }
   }
 
+  // TODO review
   async renameAll() {
+    if (this.isExecuting) return;
     this._state = "renaming";
     try {
-      const targetMap = new SvelteMap<string, Entry>();
+      const newPaths = new SvelteMap<Entry, string>();
       for (const entry of this._entries) {
         if (entry.ignored) continue;
         const newName = computeNewName(entry, this._renameRegex, this.renameConfig.renamePattern);
         if (newName === null) continue;
         const dir = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/") + 1) : "";
         const newFullPath = `${this.path}/${dir}${newName}`;
-        if (newFullPath === `${this.path}/${entry.path}`) continue;
+        if (newFullPath !== `${this.path}/${entry.path}`) newPaths.set(entry, newFullPath);
+      }
+
+      const targetMap = new SvelteMap<string, Entry>();
+      for (const [entry, newFullPath] of newPaths) {
         if (targetMap.has(newFullPath)) {
           entry.status = { ok: false, message: "Name conflict with another entry" };
           targetMap.get(newFullPath)!.status = { ok: false, message: "Name conflict with another entry" };
@@ -165,11 +197,7 @@ export class Organizer {
         }
       }
 
-      const sourcePaths = new SvelteSet(
-        this._entries
-          .filter((e) => !e.ignored && computeNewName(e, this._renameRegex, this.renameConfig.renamePattern) !== null)
-          .map((e) => `${this.path}/${e.path}`),
-      );
+      const sourcePaths = new SvelteSet(this._entries.filter((e) => !e.ignored).map((e) => `${this.path}/${e.path}`));
       for (const [newFullPath, entry] of targetMap) {
         if (entry.status) continue;
         if (!sourcePaths.has(newFullPath) && (await exists(newFullPath))) {
@@ -177,14 +205,9 @@ export class Organizer {
         }
       }
 
-      for (const entry of this._entries) {
-        if (entry.ignored) continue;
+      for (const [entry, newFullPath] of newPaths) {
         if (entry.status) continue;
-        const newName = computeNewName(entry, this._renameRegex, this.renameConfig.renamePattern);
-        if (newName === null) continue;
         const oldFullPath = `${this.path}/${entry.path}`;
-        const dir = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/") + 1) : "";
-        const newFullPath = `${this.path}/${dir}${newName}`;
         try {
           if (!(await exists(oldFullPath))) {
             entry.status = { ok: false, message: "Not found" };
@@ -201,23 +224,9 @@ export class Organizer {
     }
   }
 
-  private _validateMoveTarget() {
-    if (this._moveDebounceTimer) clearTimeout(this._moveDebounceTimer);
-    this._moveDebounceTimer = setTimeout(async () => {
-      if (!this.moveConfig.targetPath) {
-        this._moveTargetError = "";
-        return;
-      }
-      try {
-        const info = await stat(this.moveConfig.targetPath);
-        this._moveTargetError = info.isDirectory ? "" : "Path is not a directory";
-      } catch (e) {
-        this._moveTargetError = String(e);
-      }
-    }, 300);
-  }
-
+  // TODO review
   async moveAll() {
+    if (this.isExecuting) return;
     this._state = "moving";
     try {
       const targetMap = new SvelteMap<string, Entry>();
@@ -267,48 +276,71 @@ export class Organizer {
     }
   }
 
+  // --- Private methods ---
+
+  private _validateMoveTarget() {
+    if (this.moveDebounceTimer) clearTimeout(this.moveDebounceTimer);
+    this.moveDebounceTimer = setTimeout(async () => {
+      if (!this.moveConfig.targetPath) {
+        this._moveTargetError = "";
+        return;
+      }
+      try {
+        const info = await stat(this.moveConfig.targetPath);
+        this._moveTargetError = info.isDirectory ? "" : "Path is not a directory";
+      } catch (e) {
+        this._moveTargetError = String(e);
+      }
+    }, 300);
+  }
+
   private _scan() {
     this._pathError = "";
 
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+
     if (!this.path) {
+      this.requestId++;
+      this._entries = [];
+      this._state = "idle";
       return;
     }
 
-    if (this.debounceTimer) {
-      clearTimeout(this.debounceTimer);
-    }
-
     const currentId = ++this.requestId;
+    this.debounceTimer = setTimeout(() => void this._runScan(currentId), 300);
+  }
 
-    this.debounceTimer = setTimeout(async () => {
-      this._state = "scanning";
+  private async _runScan(currentId: number) {
+    this._state = "scanning";
 
-      try {
-        const info = await stat(this.path);
-        if (!info.isDirectory) {
-          if (currentId !== this.requestId) return;
-          this._pathError = "Path is not a directory";
-          return;
-        }
-
-        const entries: Entry[] = [];
-        this._scanCount = 0;
-
-        await this._scanDir("", currentId, entries);
-
+    try {
+      const info = await stat(this.path);
+      if (!info.isDirectory) {
         if (currentId !== this.requestId) return;
-        this._entries = entries;
-        this._pathError = "";
-      } catch (e) {
-        if (currentId !== this.requestId) return;
-        this._pathError = String(e);
-        this._entries = [];
-      } finally {
-        if (currentId === this.requestId) {
-          this._state = "idle";
-        }
+        this._pathError = "Path is not a directory";
+        return;
       }
-    }, 300);
+
+      const entries: Entry[] = [];
+      this._scanCount = 0;
+
+      await this._scanDir("", currentId, entries);
+
+      if (currentId !== this.requestId) return;
+      this._entries = entries;
+      this._pathError = "";
+    } catch (e) {
+      if (currentId !== this.requestId) return;
+      this._pathError = String(e);
+      this._entries = [];
+    } finally {
+      if (currentId === this.requestId) {
+        this._state = "idle";
+      }
+    }
   }
 
   // Returns true if all non-system children of this directory would be deleted,
@@ -336,7 +368,6 @@ export class Organizer {
       if (requestId !== this.requestId) return false;
 
       const entryRelPath = relPath ? `${relPath}/${entry.name}` : entry.name;
-      const entryFullPath = `${this.path}/${entryRelPath}`;
       const isSystem = SYSTEM_FILES.has(entry.name);
       let entryWillBeDeleted = false;
 
@@ -344,7 +375,7 @@ export class Organizer {
         const subResult: Entry[] = [];
         let childrenWouldBeEmpty = false;
 
-        if (this.filters.recursive && !entry.isSymlink) {
+        if (this.scanConfig.recursive && !entry.isSymlink) {
           const childrenExcluded = this._compiledPatterns.exclude.some((r) => r.test(entryRelPath));
           if (!childrenExcluded) {
             try {
@@ -359,7 +390,7 @@ export class Organizer {
         if (matchesFilters(entryRelPath, false, this.filters, this._compiledPatterns)) {
           let passes = !this.filters.isEmpty;
           if (!passes) {
-            const currentlyEmpty = await isEntryEmpty(entryFullPath, false).catch(() => false);
+            const currentlyEmpty = await isEntryEmpty(`${this.path}/${entryRelPath}`, false).catch(() => false);
             passes = currentlyEmpty || childrenWouldBeEmpty;
           }
           if (passes) {
@@ -371,7 +402,7 @@ export class Organizer {
         result.push(...subResult);
       } else {
         if (matchesFilters(entryRelPath, true, this.filters, this._compiledPatterns)) {
-          if (!this.filters.isEmpty || (await isEntryEmpty(entryFullPath, true).catch(() => false))) {
+          if (!this.filters.isEmpty || (await isEntryEmpty(`${this.path}/${entryRelPath}`, true).catch(() => false))) {
             result.push({ path: entryRelPath, isFile: true, ignored: false });
             entryWillBeDeleted = true;
           }

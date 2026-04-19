@@ -18,12 +18,15 @@ export interface RenameConfig {
   renamePattern: string;
 }
 
+export interface ScanConfig {
+  recursive: boolean;
+}
+
 export interface FilterConfig {
   includePatterns: string[];
   excludePatterns: string[];
   excludeFiles: boolean;
   excludeFolders: boolean;
   excludeSystemFiles: boolean;
-  recursive: boolean;
   isEmpty: boolean;
 }

@@ -7,9 +7,6 @@
   import FilterPanel from "./FilterPanel.svelte";
 
   const organizer = new Organizer();
-  const isExecuting = $derived(
-    organizer.state === "deleting" || organizer.state === "renaming" || organizer.state === "moving",
-  );
   onDestroy(organizer.cleanup);
 
   let action = $state<"delete" | "move" | "rename">("delete");
@@ -69,24 +66,27 @@
         bind:value={organizer.path}
         class:invalid={!organizer.pathIsValid}
         aria-invalid={!organizer.pathIsValid || undefined}
-        disabled={isExecuting}
+        disabled={organizer.isExecuting}
       />
-      <button onclick={openFolder} disabled={isExecuting}>Open …</button>
+      <button onclick={openFolder} disabled={organizer.isExecuting}>Open …</button>
       <button
         onclick={organizer.reload}
         disabled={organizer.state !== "idle" && organizer.state !== "done" && organizer.state !== "scanning"}
         aria-label="Reload folder">↺</button
       >
+      <label>
+        <input type="checkbox" bind:checked={organizer.scanConfig.recursive} disabled={organizer.isExecuting} /> Recursive
+      </label>
     </div>
     <p class="error path-error" aria-live="polite">{organizer.pathError}</p>
   </section>
 
-  <FilterPanel bind:filters={organizer.filters} disabled={isExecuting} />
+  <FilterPanel bind:filters={organizer.filters} disabled={organizer.isExecuting} />
 
   <ActionPanel
     bind:action
     {organizer}
-    disabled={isExecuting}
+    disabled={organizer.isExecuting}
     disabledExecute={organizer.state !== "idle"}
     onDeleteAll={deleteAll}
     onMoveAll={moveAll}
@@ -131,5 +131,11 @@
   .path-error {
     margin: 0.5rem 0 0;
     min-height: 1lh;
+  }
+
+  .field label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 </style>

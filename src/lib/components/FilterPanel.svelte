@@ -14,11 +14,6 @@
 <section class="filters">
   <div class="filter-row">
     <label>
-      <input type="checkbox" bind:checked={filters.recursive} {disabled} /> Recursive
-    </label>
-  </div>
-  <div class="filter-row">
-    <label>
       <input type="checkbox" bind:checked={filters.excludeFiles} {disabled} /> Exclude Files
     </label>
     <label>
