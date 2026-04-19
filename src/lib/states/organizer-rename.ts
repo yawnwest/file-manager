@@ -17,15 +17,17 @@ export function applyRename(name: string, isFile: boolean, regex: RegExp, rename
   const match = regex.exec(name);
   if (!match) return null;
 
+  const dot = isFile ? name.lastIndexOf(".") : -1;
+  const ext = dot > 0 ? name.slice(dot) : "";
+  const base = dot > 0 ? name.slice(0, dot) : name;
+
   const groups = match.groups ?? {};
-  let newStem = renamePattern;
+  let newStem = renamePattern.replaceAll("$<filename>", base);
   for (const [key, value] of Object.entries(groups)) {
     newStem = newStem.replaceAll(`$<${key}>`, value ?? "");
   }
 
   if (isFile) {
-    const dot = name.lastIndexOf(".");
-    const ext = dot > 0 ? name.slice(dot) : "";
     return newStem + ext;
   }
   return newStem;

@@ -99,7 +99,7 @@
                 {#if newName !== null}
                   <span class="new-name">{newName}</span>
                 {:else}
-                  <span class="no-match">—</span>
+                  <span class="no-match">Does not match pattern</span>
                 {/if}
               </td>
             {/if}

@@ -364,6 +364,141 @@ describe("Organizer", () => {
     });
   });
 
+  describe("renameAll()", () => {
+    beforeEach(async () => {
+      organizer.renameConfig.matchPattern = "(?<stem>.+)\\.txt";
+      organizer.renameConfig.renamePattern = "renamed_$<stem>";
+      flushSync();
+      vi.mocked(rename).mockResolvedValue(undefined);
+      mockReadDir.mockResolvedValue([file("a.txt"), file("b.txt")]);
+      await triggerScan();
+      // sources exist, targets do not
+      mockExists.mockImplementation(async (p) => p === "/test/a.txt" || p === "/test/b.txt");
+    });
+
+    it("sets state to renaming during execution, then done", async () => {
+      let stateWhileRenaming: string | null = null;
+      vi.mocked(rename).mockImplementation(async () => {
+        stateWhileRenaming = organizer.state;
+      });
+      await organizer.renameAll();
+      expect(stateWhileRenaming).toBe("renaming");
+      expect(organizer.state).toBe("done");
+    });
+
+    it("renames matching entries with correct paths", async () => {
+      await organizer.renameAll();
+      expect(vi.mocked(rename)).toHaveBeenCalledWith("/test/a.txt", "/test/renamed_a.txt");
+      expect(vi.mocked(rename)).toHaveBeenCalledWith("/test/b.txt", "/test/renamed_b.txt");
+      expect(organizer.entries.every((e) => e.status?.ok === true)).toBe(true);
+    });
+
+    it("preserves directory prefix for nested entries", async () => {
+      organizer.scanConfig.recursive = true;
+      mockReadDir.mockResolvedValueOnce([folder("sub")]).mockResolvedValueOnce([file("c.txt")]);
+      await triggerScan();
+      mockExists.mockImplementation(async (p) => p === "/test/sub/c.txt");
+      await organizer.renameAll();
+      expect(vi.mocked(rename)).toHaveBeenCalledWith("/test/sub/c.txt", "/test/sub/renamed_c.txt");
+    });
+
+    it("skips ignored entries", async () => {
+      organizer.entries[0].ignored = true;
+      await organizer.renameAll();
+      expect(organizer.entries[0].status).toBeUndefined();
+      expect(organizer.entries[1].status?.ok).toBe(true);
+    });
+
+    it("skips entries that do not match the regex", async () => {
+      mockReadDir.mockResolvedValue([file("a.txt"), file("no-match")]);
+      await triggerScan();
+      mockExists.mockImplementation(async (p) => p === "/test/a.txt");
+      await organizer.renameAll();
+      expect(organizer.entries.find((e) => e.path === "no-match")?.status).toBeUndefined();
+    });
+
+    it("skips entries where new name equals old name", async () => {
+      organizer.renameConfig.matchPattern = ".*";
+      organizer.renameConfig.renamePattern = "$<filename>";
+      flushSync();
+      await organizer.renameAll();
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+    });
+
+    it("marks both entries when two would rename to the same path", async () => {
+      // both a.txt and b.txt → same.txt with this pattern
+      organizer.renameConfig.matchPattern = "(?<stem>[^.]+)";
+      organizer.renameConfig.renamePattern = "same";
+      flushSync();
+      await organizer.renameAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Name conflict with another entry" });
+      expect(organizer.entries[1].status).toEqual({ ok: false, message: "Name conflict with another entry" });
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+    });
+
+    it("conflict does not block unrelated entries", async () => {
+      // a.txt and b.txt conflict (both → same.txt); c.md renames to same.md without conflict
+      organizer.renameConfig.matchPattern = "(?<stem>[^.]+)";
+      organizer.renameConfig.renamePattern = "same";
+      flushSync();
+      mockReadDir.mockResolvedValue([file("a.txt"), file("b.txt"), file("c.md")]);
+      organizer.reload();
+      await drainAsync(0);
+      mockExists.mockImplementation(async (p) => ["a.txt", "b.txt", "c.md"].some((f) => String(p).endsWith(`/${f}`)));
+      await organizer.renameAll();
+      expect(organizer.entries[2].status?.ok).toBe(true);
+    });
+
+    it("marks entry Not found when source does not exist", async () => {
+      mockExists.mockResolvedValue(false);
+      await organizer.renameAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Not found" });
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+    });
+
+    it("marks entry Already exists when target exists and is not a source path", async () => {
+      // both source and non-source target exist
+      mockExists.mockResolvedValue(true);
+      await organizer.renameAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Already exists" });
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+    });
+
+    it("allows chain rename where target is itself a source path", async () => {
+      // a.txt → renamed_a.txt (target is a source); renamed_a.txt → renamed_renamed_a.txt
+      mockReadDir.mockResolvedValue([file("a.txt"), file("renamed_a.txt")]);
+      organizer.reload();
+      await drainAsync(0);
+      mockExists.mockImplementation(async (p) => p === "/test/a.txt" || p === "/test/renamed_a.txt");
+      await organizer.renameAll();
+      expect(organizer.entries[0].status?.ok).toBe(true);
+    });
+
+    it("marks entry with error message when rename throws", async () => {
+      vi.mocked(rename).mockRejectedValue(new Error("permission denied"));
+      await organizer.renameAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Error: permission denied" });
+    });
+
+    it("does not start a second execution when already executing", async () => {
+      let resolveExists!: (v: boolean) => void;
+      mockExists.mockReturnValueOnce(
+        new Promise((res) => {
+          resolveExists = res;
+        }),
+      );
+      const first = organizer.renameAll();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(organizer.state).toBe("renaming");
+      await organizer.renameAll();
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+      resolveExists(false);
+      await first;
+      expect(organizer.state).toBe("done");
+    });
+  });
+
   describe("moveAll()", () => {
     const TARGET = "/target";
 

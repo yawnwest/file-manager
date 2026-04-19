@@ -57,6 +57,26 @@ describe("applyRename", () => {
     const regex = /\d+/;
     expect(applyRename("123.txt", true, regex, "fixed")).toBe("fixed.txt");
   });
+
+  it("replaces $<filename> with the stem of a file", () => {
+    const regex = /.*/;
+    expect(applyRename("report.pdf", true, regex, "$<filename>-copy")).toBe("report-copy.pdf");
+  });
+
+  it("replaces $<filename> with the full name for folders", () => {
+    const regex = /.*/;
+    expect(applyRename("my-folder", false, regex, "$<filename>-copy")).toBe("my-folder-copy");
+  });
+
+  it("replaces $<filename> with full name for dotfiles (no extension)", () => {
+    const regex = /.*/;
+    expect(applyRename(".gitignore", true, regex, "$<filename>-copy")).toBe(".gitignore-copy");
+  });
+
+  it("replaces $<filename> alongside named groups", () => {
+    const regex = /(?<n>\d+)/;
+    expect(applyRename("report42.txt", true, regex, "$<filename>_$<n>")).toBe("report42_42.txt");
+  });
 });
 
 describe("computeNewName", () => {

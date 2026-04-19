@@ -36,8 +36,8 @@ export class Organizer {
 
   // --- Rename config ---
   renameConfig: RenameConfig = $state({
-    matchPattern: "",
-    renamePattern: "",
+    matchPattern: ".*",
+    renamePattern: "$<filename>",
   });
   private readonly _renameRegexResult = $derived.by(() => {
     if (!this.renameConfig.matchPattern) return { regex: null, error: "" };
@@ -171,7 +171,6 @@ export class Organizer {
     }
   }
 
-  // TODO review
   async renameAll() {
     if (this.isExecuting) return;
     this._state = "renaming";
@@ -197,19 +196,16 @@ export class Organizer {
       }
 
       const sourcePaths = new SvelteSet([...newPaths.keys()].map((e) => `${this.path}/${e.path}`));
-      for (const [newFullPath, entry] of targetMap) {
-        if (entry.status) continue;
-        if (!sourcePaths.has(newFullPath) && (await exists(newFullPath))) {
-          entry.status = { ok: false, message: "Already exists" };
-        }
-      }
-
       for (const [entry, newFullPath] of newPaths) {
         if (entry.status) continue;
         const oldFullPath = `${this.path}/${entry.path}`;
         try {
           if (!(await exists(oldFullPath))) {
             entry.status = { ok: false, message: "Not found" };
+            continue;
+          }
+          if (!sourcePaths.has(newFullPath) && (await exists(newFullPath))) {
+            entry.status = { ok: false, message: "Already exists" };
             continue;
           }
           await rename(oldFullPath, newFullPath);

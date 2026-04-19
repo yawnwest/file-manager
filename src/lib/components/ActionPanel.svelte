@@ -20,6 +20,23 @@
     onRenameAll: () => void;
     onOpenMoveTarget: () => void;
   } = $props();
+
+  let matchPatternInput = $state<HTMLInputElement>();
+  let renamePatternInput = $state<HTMLInputElement>();
+
+  const matchGroups = $derived(
+    [...(organizer.renameConfig.matchPattern ?? "").matchAll(/\(\?<(\w+)>/g)].map((m) => m[1]),
+  );
+
+  function insertAt(input: HTMLInputElement, get: () => string, set: (v: string) => void, snippet: string) {
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    const value = get() ?? "";
+    set(value.slice(0, start) + snippet + value.slice(end));
+    input.focus();
+    const pos = start + snippet.length;
+    requestAnimationFrame(() => input.setSelectionRange(pos, pos));
+  }
 </script>
 
 <section class="action-config">
@@ -70,23 +87,70 @@
     </div>
   {:else if action === "rename"}
     <div class="action-options">
-      <div class="field">
-        <label for="rename-match-pattern">Match pattern</label>
-        <input
-          id="rename-match-pattern"
-          placeholder="(?<number>\d\d)\..*"
-          {disabled}
-          bind:value={organizer.renameConfig.matchPattern}
-        />
+      <div class="field-group">
+        <div class="field">
+          <label for="rename-match-pattern">Match pattern</label>
+          <input
+            id="rename-match-pattern"
+            placeholder="(?<number>\d\d)\..*"
+            {disabled}
+            bind:this={matchPatternInput}
+            bind:value={organizer.renameConfig.matchPattern}
+          />
+        </div>
+        <div class="snippets">
+          {#each [".*", "(?<name>.*)"] as snippet (snippet)}
+            <button
+              class="snippet"
+              {disabled}
+              onclick={() =>
+                insertAt(
+                  matchPatternInput!,
+                  () => organizer.renameConfig.matchPattern,
+                  (v) => (organizer.renameConfig.matchPattern = v),
+                  snippet,
+                )}>{snippet}</button
+            >
+          {/each}
+        </div>
       </div>
-      <div class="field">
-        <label for="rename-pattern">Rename to</label>
-        <input
-          id="rename-pattern"
-          placeholder="$&lt;number&gt;.new name"
-          {disabled}
-          bind:value={organizer.renameConfig.renamePattern}
-        />
+      <div class="field-group">
+        <div class="field">
+          <label for="rename-pattern">Rename to</label>
+          <input
+            id="rename-pattern"
+            placeholder="$&lt;number&gt;.new name"
+            {disabled}
+            bind:this={renamePatternInput}
+            bind:value={organizer.renameConfig.renamePattern}
+          />
+        </div>
+        <div class="snippets">
+          <button
+            class="snippet"
+            {disabled}
+            onclick={() =>
+              insertAt(
+                renamePatternInput!,
+                () => organizer.renameConfig.renamePattern,
+                (v) => (organizer.renameConfig.renamePattern = v),
+                "$<filename>",
+              )}>$&lt;filename&gt;</button
+          >
+          {#each matchGroups as group (group)}
+            <button
+              class="snippet"
+              {disabled}
+              onclick={() =>
+                insertAt(
+                  renamePatternInput!,
+                  () => organizer.renameConfig.renamePattern,
+                  (v) => (organizer.renameConfig.renamePattern = v),
+                  `$<${group}>`,
+                )}>$&lt;{group}&gt;</button
+            >
+          {/each}
+        </div>
       </div>
     </div>
     {#if organizer.renamePatternError}
@@ -109,12 +173,33 @@
     flex: 1 0 14rem;
   }
 
-  .field label {
-    font-weight: bold;
-  }
-
   input:not([type="checkbox"]):not([type="radio"]) {
     flex: 1;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1 0 14rem;
+  }
+
+  .field-group .field {
+    flex: unset;
+  }
+
+  .snippets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .snippet {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    font-family: monospace;
+    cursor: pointer;
+    --btn-color: var(--color-neutral);
   }
 
   .btn-danger {
@@ -149,7 +234,7 @@
   .action-options {
     display: flex;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.75rem;
     flex-wrap: wrap;
   }
