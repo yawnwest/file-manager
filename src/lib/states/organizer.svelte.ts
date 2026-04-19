@@ -144,7 +144,6 @@ export class Organizer {
     void this._runScan(++this.requestId);
   }
 
-  // TODO review
   async deleteAll() {
     if (this.isExecuting) return;
     this._state = "deleting";
@@ -157,7 +156,7 @@ export class Organizer {
             entry.status = { ok: false, message: "Not found" };
             continue;
           }
-          if (this.filters.isEmpty && !entry.isFile && !(await isEntryEmpty(fullPath, false))) {
+          if (this.filters.isEmpty && !(await isEntryEmpty(fullPath, entry.isFile))) {
             entry.status = { ok: false, message: "Not empty" };
             continue;
           }

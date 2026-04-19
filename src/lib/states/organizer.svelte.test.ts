@@ -15,13 +15,15 @@ vi.mock("./organizer-filters", async (importOriginal) => {
   return { ...mod, isEntryEmpty: vi.fn() };
 });
 
-import { readDir, stat } from "@tauri-apps/plugin-fs";
+import { exists, readDir, remove, stat } from "@tauri-apps/plugin-fs";
 import { isEntryEmpty } from "./organizer-filters";
 import { Organizer } from "./organizer.svelte";
 
 const mockStat = vi.mocked(stat);
 const mockReadDir = vi.mocked(readDir);
 const mockIsEntryEmpty = vi.mocked(isEntryEmpty);
+const mockExists = vi.mocked(exists);
+const mockRemove = vi.mocked(remove);
 
 type FakeDirEntry = Awaited<ReturnType<typeof readDir>>[number];
 
@@ -226,6 +228,139 @@ describe("Organizer", () => {
 
       expect(organizer.entries).toHaveLength(1);
       expect(organizer.entries[0].path).toBe("a.txt");
+    });
+  });
+
+  describe("deleteAll()", () => {
+    beforeEach(async () => {
+      mockExists.mockResolvedValue(true);
+      mockRemove.mockResolvedValue(undefined);
+      mockReadDir.mockResolvedValue([file("a.txt"), file("b.txt")]);
+      await triggerScan();
+    });
+
+    it("sets state to deleting during execution, then done", async () => {
+      let stateWhileDeleting: string | null = null;
+      mockRemove.mockImplementation(async () => {
+        stateWhileDeleting = organizer.state;
+      });
+      await organizer.deleteAll();
+      expect(stateWhileDeleting).toBe("deleting");
+      expect(organizer.state).toBe("done");
+    });
+
+    it("marks each entry ok after successful removal", async () => {
+      await organizer.deleteAll();
+      expect(organizer.entries.every((e) => e.status?.ok === true)).toBe(true);
+    });
+
+    it("skips ignored entries", async () => {
+      organizer.entries[0].ignored = true;
+      await organizer.deleteAll();
+      expect(organizer.entries[0].status).toBeUndefined();
+      expect(organizer.entries[1].status?.ok).toBe(true);
+    });
+
+    it("marks entry Not found when file does not exist", async () => {
+      mockExists.mockResolvedValue(false);
+      await organizer.deleteAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Not found" });
+      expect(mockRemove).not.toHaveBeenCalled();
+    });
+
+    it("marks entry with error message when remove throws", async () => {
+      mockRemove.mockRejectedValue(new Error("permission denied"));
+      await organizer.deleteAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Error: permission denied" });
+    });
+
+    it("does not start a second execution when already executing", async () => {
+      let resolveExists!: (v: boolean) => void;
+      mockExists.mockReturnValueOnce(
+        new Promise((res) => {
+          resolveExists = res;
+        }),
+      );
+
+      const first = organizer.deleteAll();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(organizer.state).toBe("deleting");
+
+      await organizer.deleteAll(); // returns early
+      expect(mockRemove).not.toHaveBeenCalled();
+
+      resolveExists(false);
+      await first;
+      expect(organizer.state).toBe("done");
+    });
+
+    it("deletes children before parent (reverse order)", async () => {
+      organizer.scanConfig.recursive = true;
+      mockReadDir.mockResolvedValueOnce([folder("sub")]).mockResolvedValueOnce([file("file.txt")]);
+      await triggerScan();
+
+      const deletedPaths: string[] = [];
+      mockRemove.mockImplementation(async (path) => {
+        deletedPaths.push(path as string);
+      });
+
+      await organizer.deleteAll();
+
+      expect(deletedPaths[0]).toBe("/test/sub/file.txt");
+      expect(deletedPaths[1]).toBe("/test/sub");
+    });
+
+    describe("with isEmpty filter", () => {
+      beforeEach(() => {
+        organizer.filters.isEmpty = true;
+      });
+
+      it("skips a folder that became non-empty since scan", async () => {
+        mockReadDir.mockResolvedValue([folder("mydir")]);
+        mockIsEntryEmpty.mockResolvedValueOnce(true); // scan: empty → include
+        mockIsEntryEmpty.mockResolvedValueOnce(false); // deleteAll: no longer empty
+        await triggerScan();
+
+        await organizer.deleteAll();
+
+        expect(mockRemove).not.toHaveBeenCalled();
+        expect(organizer.entries[0].status).toEqual({ ok: false, message: "Not empty" });
+      });
+
+      it("deletes a folder that is still empty", async () => {
+        mockReadDir.mockResolvedValue([folder("mydir")]);
+        mockIsEntryEmpty.mockResolvedValue(true);
+        await triggerScan();
+
+        await organizer.deleteAll();
+
+        expect(mockRemove).toHaveBeenCalledWith("/test/mydir", { recursive: true });
+        expect(organizer.entries[0].status?.ok).toBe(true);
+      });
+
+      it("skips a file that became non-empty since scan", async () => {
+        mockReadDir.mockResolvedValue([file("was-empty.txt")]);
+        mockIsEntryEmpty.mockResolvedValueOnce(true); // scan: empty → include
+        mockIsEntryEmpty.mockResolvedValueOnce(false); // deleteAll: no longer empty
+        await triggerScan();
+
+        await organizer.deleteAll();
+
+        expect(mockRemove).not.toHaveBeenCalled();
+        expect(organizer.entries[0].status).toEqual({ ok: false, message: "Not empty" });
+      });
+
+      it("deletes a file that is still empty", async () => {
+        mockReadDir.mockResolvedValue([file("empty.txt")]);
+        mockIsEntryEmpty.mockResolvedValue(true);
+        await triggerScan();
+
+        await organizer.deleteAll();
+
+        expect(mockRemove).toHaveBeenCalledWith("/test/empty.txt", { recursive: true });
+        expect(organizer.entries[0].status?.ok).toBe(true);
+      });
     });
   });
 

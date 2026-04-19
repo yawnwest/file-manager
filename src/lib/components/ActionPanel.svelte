@@ -36,9 +36,9 @@
   </div>
   {#if action === "delete"}
     <div class="action-execute">
-      <button class="btn-danger" onclick={onDeleteAll} disabled={disabledExecute || organizer.activeCount === 0}
-        >Delete all</button
-      >
+      <button class="btn-danger" onclick={onDeleteAll} disabled={disabledExecute || organizer.activeCount === 0}>
+        Delete all
+      </button>
     </div>
   {:else if action === "move"}
     <div class="action-options">
@@ -70,7 +70,7 @@
     </div>
   {:else if action === "rename"}
     <div class="action-options">
-      <div class="filter-field">
+      <div class="field">
         <label for="rename-match-pattern">Match pattern</label>
         <input
           id="rename-match-pattern"
@@ -79,7 +79,7 @@
           bind:value={organizer.renameConfig.matchPattern}
         />
       </div>
-      <div class="filter-field">
+      <div class="field">
         <label for="rename-pattern">Rename to</label>
         <input
           id="rename-pattern"
@@ -106,6 +106,7 @@
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
+    flex: 1 0 14rem;
   }
 
   .field label {
@@ -124,7 +125,7 @@
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    gap: 0.8rem;
+    gap: 0.75rem;
     margin: 0.75rem 1rem;
     padding: 0.75rem 1rem;
     background-color: color-mix(in srgb, var(--color-surface) 80%, var(--color-border));
@@ -138,7 +139,8 @@
     align-items: center;
   }
 
-  .action-row label {
+  .action-row label,
+  .action-options label {
     display: flex;
     align-items: center;
     gap: 0.25rem;
@@ -152,21 +154,8 @@
     flex-wrap: wrap;
   }
 
-  .action-options label {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
   .action-execute {
     display: flex;
     justify-content: flex-end;
-  }
-
-  .filter-field {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    flex: 1 0 14rem;
   }
 </style>
