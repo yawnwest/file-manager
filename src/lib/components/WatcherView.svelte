@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { Watcher, type Operation } from "$lib/states/watcher.svelte";
+  import { Watcher, SUBFOLDERS } from "$lib/states/watcher.svelte";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { exists, rename } from "@tauri-apps/plugin-fs";
   import { onDestroy } from "svelte";
 
   const watcher = new Watcher();
@@ -13,33 +12,10 @@
     fix: "Fix",
   };
 
-  let dragOver = $state<Operation | null>(null);
-
   async function openFolder() {
     const selected = await open({ directory: true });
     if (selected !== null) {
       watcher.path = selected;
-    }
-  }
-
-  async function handleDrop(e: DragEvent, operation: Operation) {
-    e.preventDefault();
-    dragOver = null;
-    const files = e.dataTransfer?.files;
-    if (!files?.length) return;
-    for (const file of files) {
-      const path = (file as File & { path?: string }).path;
-      if (!path) continue;
-      let dest = `${watcher.path}/${operation}/${file.name}`;
-      if (await exists(dest)) {
-        const dot = file.name.lastIndexOf(".");
-        const stem = dot !== -1 ? file.name.slice(0, dot) : file.name;
-        const ext = dot !== -1 ? file.name.slice(dot) : "";
-        let i = 1;
-        while (await exists(`${watcher.path}/${operation}/${stem} (${i})${ext}`)) i++;
-        dest = `${watcher.path}/${operation}/${stem} (${i})${ext}`;
-      }
-      await rename(path, dest);
     }
   }
 </script>
@@ -65,21 +41,8 @@
 
   {#if watcher.path && watcher.pathIsValid}
     <section class="folders-info">
-      {#each ["rotate_left", "rotate_right", "fix"] as Operation[] as op (op)}
-        <span
-          class="chip input"
-          class:drag-over={dragOver === op}
-          role="button"
-          tabindex="0"
-          ondragover={(e) => {
-            e.preventDefault();
-            dragOver = op;
-          }}
-          ondragleave={() => {
-            dragOver = null;
-          }}
-          ondrop={(e) => handleDrop(e, op)}>{op}/</span
-        >
+      {#each SUBFOLDERS as op (op)}
+        <span class="chip input">{op}/</span>
       {/each}
       <span class="chip output">→ output/</span>
     </section>
@@ -130,9 +93,7 @@
               </td>
               <td class="col-actions">
                 {#if entry.status === "error"}
-                  <button class="btn-retry" onclick={() => watcher.retry(entry)} disabled={entry.status !== "error"}
-                    >Retry</button
-                  >
+                  <button class="btn-retry" onclick={() => watcher.retry(entry)}>Retry</button>
                 {/if}
               </td>
             </tr>
@@ -206,12 +167,6 @@
     border: 1px solid var(--color-border);
     font-family: monospace;
     background-color: var(--color-surface);
-  }
-
-  .chip.drag-over {
-    background-color: var(--color-primary);
-    color: #ffffff;
-    border-color: var(--color-primary);
   }
 
   .chip.output {
@@ -293,6 +248,12 @@
 
   .btn-cancel {
     --btn-color: var(--color-destructive);
+    font-size: 0.8rem;
+    padding: 0.1rem 0.5rem;
+  }
+
+  .btn-clear {
+    --btn-color: var(--color-neutral);
     font-size: 0.8rem;
     padding: 0.1rem 0.5rem;
   }

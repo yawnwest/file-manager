@@ -23,7 +23,7 @@ pub fn kill_all(pids: &ActivePids) {
 #[cfg(unix)]
 fn kill_pid(pid: u32) {
     unsafe {
-        libc::kill(pid as libc::pid_t, libc::SIGKILL);
+        libc::kill(pid as libc::pid_t, libc::SIGTERM);
     }
 }
 
@@ -34,7 +34,7 @@ fn kill_pid(pid: u32) {
         .output();
 }
 
-fn unique_output_path(output_dir: &str, filename: &str) -> String {
+async fn unique_output_path(output_dir: &str, filename: &str) -> String {
     let path = Path::new(filename);
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();
     let ext = path
@@ -43,14 +43,14 @@ fn unique_output_path(output_dir: &str, filename: &str) -> String {
         .unwrap_or_default();
 
     let candidate = format!("{}/{}", output_dir, filename);
-    if !Path::new(&candidate).exists() {
+    if !tokio::fs::try_exists(&candidate).await.unwrap_or(false) {
         return candidate;
     }
 
     let mut counter = 1u32;
     loop {
         let candidate = format!("{}/{} ({}){}", output_dir, stem, counter, ext);
-        if !Path::new(&candidate).exists() {
+        if !tokio::fs::try_exists(&candidate).await.unwrap_or(false) {
             return candidate;
         }
         counter += 1;
@@ -72,7 +72,7 @@ pub async fn process_video(
         .to_string();
 
     let tmp_output = format!("{}/{}_{}", tmp_dir, operation, filename);
-    let output_path = unique_output_path(&output_dir, &filename);
+    let output_path = unique_output_path(&output_dir, &filename).await;
 
     let mut cmd = Command::new("ffmpeg");
     cmd.arg("-y").arg("-i").arg(&input);

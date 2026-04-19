@@ -16,7 +16,12 @@ export interface LogEntry {
   timestamp: Date;
 }
 
-const SUBFOLDERS: Operation[] = ["rotate_left", "rotate_right", "fix"];
+export const SUBFOLDERS: Operation[] = ["rotate_left", "rotate_right", "fix"];
+
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
 const DEBOUNCE_MS = 300;
 const VIDEO_EXTENSIONS = new Set([
   "mp4",
@@ -49,9 +54,14 @@ export class Watcher {
 
   log: LogEntry[] = $state([]);
 
+  private get _basePath(): string {
+    return normalizePath(this.path);
+  }
+
   private _nextId = 0;
   private _running = false;
-  private _cancelling = false;
+  private _currentEntry: LogEntry | null = null;
+  private _cancellingEntry: LogEntry | null = null;
   private _queue: LogEntry[] = [];
   private _processing = new SvelteSet<string>();
   private _waiting = new SvelteSet<string>();
@@ -105,27 +115,23 @@ export class Watcher {
   }
 
   private async _clearTmp() {
-    const tmpDir = `${this.path}/tmp`;
+    const tmpDir = `${this._basePath}/tmp`;
     if (!(await exists(tmpDir))) return;
     const entries = await readDir(tmpDir);
     await Promise.all(entries.map((e) => remove(`${tmpDir}/${e.name}`)));
   }
 
   private async _startWatching() {
-    for (const folder of [...SUBFOLDERS, "output", "tmp"]) {
-      const folderPath = `${this.path}/${folder}`;
-      if (!(await exists(folderPath))) {
-        await mkdir(folderPath, { recursive: true });
-      }
-    }
+    await this._ensureSubfolders();
     await this._clearTmp();
 
-    const watchPaths = [this.path, ...SUBFOLDERS.map((op) => `${this.path}/${op}`)];
+    const base = this._basePath;
+    const watchPaths = [base, ...SUBFOLDERS.map((op) => `${base}/${op}`)];
 
     for (const op of SUBFOLDERS) {
-      const entries = await readDir(`${this.path}/${op}`);
+      const entries = await readDir(`${base}/${op}`);
       for (const entry of entries) {
-        void this._onFileCreated(`${this.path}/${op}/${entry.name}`);
+        void this._onFileCreated(`${base}/${op}/${entry.name}`);
       }
     }
 
@@ -147,18 +153,20 @@ export class Watcher {
   }
 
   private async _ensureSubfolders() {
+    const base = this._basePath;
     for (const folder of [...SUBFOLDERS, "output", "tmp"]) {
-      const folderPath = `${this.path}/${folder}`;
+      const folderPath = `${base}/${folder}`;
       if (!(await exists(folderPath))) {
         await mkdir(folderPath, { recursive: true });
       }
     }
   }
 
-  private async _onWatchEvent(filePath: string) {
-    const normalized = filePath.replace(/\\/g, "/");
+  private async _onWatchEvent(rawPath: string) {
+    const filePath = normalizePath(rawPath);
+    const base = this._basePath;
     const knownFolders = [...SUBFOLDERS, "output", "tmp"];
-    if (knownFolders.some((f) => normalized === `${this.path}/${f}`.replace(/\\/g, "/"))) {
+    if (knownFolders.some((f) => filePath === `${base}/${f}`)) {
       await this._ensureSubfolders();
       return;
     }
@@ -194,12 +202,12 @@ export class Watcher {
     }
   }
 
-  private async _onFileCreated(filePath: string) {
+  private async _onFileCreated(rawPath: string) {
+    const filePath = normalizePath(rawPath);
     if (this._processing.has(filePath)) return;
     if (this._waiting.has(filePath)) return;
 
-    const normalized = filePath.replace(/\\/g, "/");
-    const parts = normalized.split("/");
+    const parts = filePath.split("/");
     const filename = parts[parts.length - 1];
     const folder = parts[parts.length - 2] as Operation;
 
@@ -249,38 +257,42 @@ export class Watcher {
     const entry = this._queue.shift();
     if (!entry) {
       this._running = false;
+      this._currentEntry = null;
       return;
     }
     this._running = true;
+    this._currentEntry = entry;
     entry.status = "processing";
 
     try {
+      const base = this._basePath;
       const warning = await invoke<string | null>("process_video", {
         input: entry.filePath,
         operation: entry.operation,
-        tmpDir: `${this.path}/tmp`,
-        outputDir: `${this.path}/output`,
+        tmpDir: `${base}/tmp`,
+        outputDir: `${base}/output`,
       });
       entry.status = "done";
       if (warning) entry.message = warning;
     } catch (e) {
       entry.status = "error";
-      entry.message = this._cancelling ? "Cancelled" : errMsg(e);
-      this._cancelling = false;
+      entry.message = this._cancellingEntry === entry ? "Cancelled" : errMsg(e);
+      this._cancellingEntry = null;
     } finally {
       this._processing.delete(entry.filePath);
+      this._currentEntry = null;
     }
 
     void this._runNext();
   }
 
   async cancelCurrent() {
-    if (!this._running) return;
-    this._cancelling = true;
+    if (!this._running || !this._currentEntry) return;
+    this._cancellingEntry = this._currentEntry;
     try {
       await invoke("cancel_video");
     } catch {
-      this._cancelling = false;
+      this._cancellingEntry = null;
     }
   }
 
