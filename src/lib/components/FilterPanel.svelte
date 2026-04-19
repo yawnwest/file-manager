@@ -1,7 +1,11 @@
 <script lang="ts">
   import type { FilterConfig } from "$lib/states/organizer-types";
 
-  let { filters = $bindable(), disabled }: { filters: FilterConfig; disabled: boolean } = $props();
+  let {
+    filters = $bindable(),
+    disabled,
+    lockedExcludeFolders = false,
+  }: { filters: FilterConfig; disabled: boolean; lockedExcludeFolders?: boolean } = $props();
 
   function parseList(value: string): string[] {
     return value
@@ -17,7 +21,8 @@
       <input type="checkbox" bind:checked={filters.excludeFiles} {disabled} /> Exclude Files
     </label>
     <label>
-      <input type="checkbox" bind:checked={filters.excludeFolders} {disabled} /> Exclude Folders
+      <input type="checkbox" bind:checked={filters.excludeFolders} disabled={disabled || lockedExcludeFolders} /> Exclude
+      Folders
     </label>
     <label>
       <input type="checkbox" bind:checked={filters.excludeSystemFiles} {disabled} /> Exclude system files

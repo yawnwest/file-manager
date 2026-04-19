@@ -15,7 +15,7 @@ vi.mock("./organizer-filters", async (importOriginal) => {
   return { ...mod, isEntryEmpty: vi.fn() };
 });
 
-import { exists, readDir, remove, stat } from "@tauri-apps/plugin-fs";
+import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
 import { isEntryEmpty } from "./organizer-filters";
 import { Organizer } from "./organizer.svelte";
 
@@ -361,6 +361,118 @@ describe("Organizer", () => {
         expect(mockRemove).toHaveBeenCalledWith("/test/empty.txt", { recursive: true });
         expect(organizer.entries[0].status?.ok).toBe(true);
       });
+    });
+  });
+
+  describe("moveAll()", () => {
+    const TARGET = "/target";
+
+    beforeEach(async () => {
+      organizer.moveConfig.targetPath = TARGET;
+      await tick();
+      await drainAsync();
+      mockExists.mockResolvedValue(false);
+      vi.mocked(rename).mockResolvedValue(undefined);
+      mockReadDir.mockResolvedValue([file("a.txt"), file("b.txt")]);
+      await triggerScan();
+    });
+
+    it("sets state to moving during execution, then done", async () => {
+      let stateWhileMoving: string | null = null;
+      vi.mocked(rename).mockImplementation(async () => {
+        stateWhileMoving = organizer.state;
+      });
+      mockExists.mockResolvedValueOnce(true).mockResolvedValue(false); // oldFullPath exists, newFullPath does not
+      await organizer.moveAll();
+      expect(stateWhileMoving).toBe("moving");
+      expect(organizer.state).toBe("done");
+    });
+
+    it("renames each entry to targetPath/basename", async () => {
+      mockExists.mockImplementation(async (p) => String(p).startsWith("/test/"));
+      await organizer.moveAll();
+      expect(vi.mocked(rename)).toHaveBeenCalledWith("/test/a.txt", `${TARGET}/a.txt`);
+      expect(vi.mocked(rename)).toHaveBeenCalledWith("/test/b.txt", `${TARGET}/b.txt`);
+      expect(organizer.entries.every((e) => e.status?.ok === true)).toBe(true);
+    });
+
+    it("skips ignored entries", async () => {
+      mockExists.mockImplementation(async (p) => String(p).startsWith("/test/"));
+      organizer.entries[0].ignored = true;
+      await organizer.moveAll();
+      expect(organizer.entries[0].status).toBeUndefined();
+      expect(organizer.entries[1].status?.ok).toBe(true);
+    });
+
+    it("marks entry Not found when source does not exist", async () => {
+      mockExists.mockResolvedValue(false);
+      await organizer.moveAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Not found" });
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+    });
+
+    it("marks entry Already exists when target is occupied at move time", async () => {
+      mockExists.mockResolvedValue(true); // both oldFullPath and newFullPath exist
+      await organizer.moveAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Already exists" });
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+    });
+
+    it("marks both entries when two entries share the same basename", async () => {
+      mockReadDir.mockResolvedValue([file("a.txt"), folder("sub")]);
+      await triggerScan();
+      // inject a second entry whose basename would collide
+      organizer.entries[1] = { path: "other/a.txt", isFile: true, ignored: false };
+      await organizer.moveAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Name conflict with another entry" });
+      expect(organizer.entries[1].status).toEqual({ ok: false, message: "Name conflict with another entry" });
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+    });
+
+    it("marks entry with error message when rename throws", async () => {
+      mockExists.mockImplementation(async (p) => String(p).startsWith("/test/"));
+      vi.mocked(rename).mockRejectedValue(new Error("permission denied"));
+      await organizer.moveAll();
+      expect(organizer.entries[0].status).toEqual({ ok: false, message: "Error: permission denied" });
+    });
+
+    it("does not start a second execution when already executing", async () => {
+      let resolveExists!: (v: boolean) => void;
+      mockExists.mockReturnValueOnce(
+        new Promise((res) => {
+          resolveExists = res;
+        }),
+      );
+      const first = organizer.moveAll();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(organizer.state).toBe("moving");
+      await organizer.moveAll();
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
+      resolveExists(false);
+      await first;
+      expect(organizer.state).toBe("done");
+    });
+
+    it("skips folder entries", async () => {
+      mockReadDir.mockResolvedValue([file("a.txt"), folder("sub")]);
+      organizer.reload();
+      await drainAsync(0);
+      mockExists.mockImplementation(async (p) => String(p).startsWith("/test/"));
+      await organizer.moveAll();
+      expect(vi.mocked(rename)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(rename)).toHaveBeenCalledWith("/test/a.txt", `${TARGET}/a.txt`);
+      expect(organizer.entries.find((e) => e.path === "sub")?.status).toBeUndefined();
+    });
+
+    it("does nothing when moveTargetIsValid is false", async () => {
+      mockStat.mockResolvedValue(REGULAR_FILE);
+      organizer.moveConfig.targetPath = "/some/file.txt";
+      await tick();
+      await drainAsync();
+      await organizer.moveAll();
+      expect(organizer.state).toBe("idle");
+      expect(vi.mocked(rename)).not.toHaveBeenCalled();
     });
   });
 

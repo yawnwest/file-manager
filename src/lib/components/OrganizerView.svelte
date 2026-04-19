@@ -11,6 +11,10 @@
 
   let action = $state<"delete" | "move" | "rename">("delete");
 
+  $effect(() => {
+    if (action === "move") organizer.filters.excludeFolders = true;
+  });
+
   async function openFolder() {
     const selected = await open({ directory: true });
     if (selected !== null) {
@@ -81,7 +85,11 @@
     <p class="error path-error" aria-live="polite">{organizer.pathError}</p>
   </section>
 
-  <FilterPanel bind:filters={organizer.filters} disabled={organizer.isExecuting} />
+  <FilterPanel
+    bind:filters={organizer.filters}
+    disabled={organizer.isExecuting}
+    lockedExcludeFolders={action === "move"}
+  />
 
   <ActionPanel
     bind:action

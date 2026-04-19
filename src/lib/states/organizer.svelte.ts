@@ -196,7 +196,7 @@ export class Organizer {
         }
       }
 
-      const sourcePaths = new SvelteSet(this._entries.filter((e) => !e.ignored).map((e) => `${this.path}/${e.path}`));
+      const sourcePaths = new SvelteSet([...newPaths.keys()].map((e) => `${this.path}/${e.path}`));
       for (const [newFullPath, entry] of targetMap) {
         if (entry.status) continue;
         if (!sourcePaths.has(newFullPath) && (await exists(newFullPath))) {
@@ -223,14 +223,14 @@ export class Organizer {
     }
   }
 
-  // TODO review
   async moveAll() {
     if (this.isExecuting) return;
+    if (!this.moveTargetIsValid) return;
     this._state = "moving";
     try {
       const targetMap = new SvelteMap<string, Entry>();
       for (const entry of this._entries) {
-        if (entry.ignored) continue;
+        if (entry.ignored || !entry.isFile) continue;
         const basename = entry.path.split("/").pop();
         if (!basename) continue;
         const newFullPath = `${this.moveConfig.targetPath}/${basename}`;
@@ -244,24 +244,14 @@ export class Organizer {
 
       for (const [newFullPath, entry] of targetMap) {
         if (entry.status) continue;
-        if (await exists(newFullPath)) {
-          entry.status = { ok: false, message: "Already exists" };
-        }
-      }
-
-      for (const entry of this._entries) {
-        if (entry.ignored) continue;
-        if (entry.status) continue;
         const oldFullPath = `${this.path}/${entry.path}`;
-        const basename = entry.path.split("/").pop();
-        if (!basename) {
-          entry.status = { ok: false, message: "Invalid path" };
-          continue;
-        }
-        const newFullPath = `${this.moveConfig.targetPath}/${basename}`;
         try {
           if (!(await exists(oldFullPath))) {
             entry.status = { ok: false, message: "Not found" };
+            continue;
+          }
+          if (await exists(newFullPath)) {
+            entry.status = { ok: false, message: "Already exists" };
             continue;
           }
           await rename(oldFullPath, newFullPath);
