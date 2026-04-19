@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Organizer } from "$lib/states/organizer.svelte";
   import { computeNewName } from "$lib/states/organizer-rename";
+  import type { Organizer } from "$lib/states/organizer.svelte";
   import { SvelteSet } from "svelte/reactivity";
 
   let {
@@ -135,7 +135,7 @@
 
 <style>
   .entry-count {
-    margin: 1rem 0.1rem;
+    margin: 1rem 0;
     font-size: 0.85em;
     color: color-mix(in srgb, var(--color-foreground) 60%, transparent);
   }
@@ -253,6 +253,9 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  td.col-status {
     cursor: pointer;
     user-select: none;
   }
