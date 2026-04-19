@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
         with:
           run_install: true
 
@@ -43,6 +43,9 @@ jobs:
       - name: Install system dependencies
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Check and test
+        run: pnpm check && pnpm test
 
       - uses: tauri-apps/tauri-action@action-v0.6.2
         env:

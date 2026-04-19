@@ -1,11 +1,9 @@
 export const SYSTEM_FILES = new Set([
-  // macOS
-  ".DS_Store",
-  ".localized",
-  ".Spotlight-V100",
-  ".fseventsd",
-  ".Trashes",
-  // Windows
-  "Thumbs.db",
-  "desktop.ini",
+  ".DS_Store", // macOS folder metadata
+  ".localized", // macOS folder localization marker
+  ".Spotlight-V100", // macOS Spotlight index on external volumes
+  ".fseventsd", // macOS FSEvents log on external volumes
+  ".Trashes", // macOS volume trash
+  "Thumbs.db", // Windows thumbnail cache
+  "desktop.ini", // Windows folder settings
 ]);

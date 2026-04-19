@@ -1,16 +1,23 @@
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+
 export class Zoom {
   value = $state(1);
+  readonly cleanup: () => void;
 
   constructor() {
-    $effect(() => {
-      document.documentElement.style.zoom = String(this.value);
-      document.addEventListener("wheel", this.handleWheel, { passive: false });
-      return () => document.removeEventListener("wheel", this.handleWheel);
+    this.cleanup = $effect.root(() => {
+      $effect(() => {
+        getCurrentWebviewWindow().setZoom(this.value).catch(console.error);
+      });
+      $effect(() => {
+        document.addEventListener("wheel", this.handleWheel, { passive: false });
+        return () => document.removeEventListener("wheel", this.handleWheel);
+      });
     });
   }
 
   handleKeydown = (event: KeyboardEvent) => {
-    if (event.metaKey) {
+    if (event.metaKey || event.ctrlKey) {
       if (event.key === "=" || event.key === "+") {
         event.preventDefault();
         this.value = Math.min(+(this.value + 0.1).toFixed(1), 3);
@@ -25,7 +32,7 @@ export class Zoom {
   };
 
   handleWheel = (event: WheelEvent) => {
-    if (event.metaKey) {
+    if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
       const delta = event.deltaY > 0 ? -0.1 : 0.1;
       this.value = Math.min(Math.max(+(this.value + delta).toFixed(1), 0.5), 3);

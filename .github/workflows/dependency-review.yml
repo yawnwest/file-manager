@@ -13,3 +13,4 @@ jobs:
       - uses: actions/dependency-review-action@v4
         with:
           retry-on-snapshot-warnings: true
+          config-file: ".github/dependency-review-config.yml"

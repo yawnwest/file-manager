@@ -1,0 +1,12 @@
+allow-ghsas:
+  - GHSA-cq8v-f236-94qc
+
+allow-dependencies-licenses:
+  - "pkg:githubactions/pnpm/action-setup"
+  - "pkg:npm/@tauri-apps/api"
+  - "pkg:npm/@csstools/css-color-parser"
+  - "pkg:npm/@tauri-apps/plugin-updater"
+  - "pkg:npm/semver"
+  - "pkg:cargo/semver"
+  - "pkg:cargo/tauri-plugin-process"
+  - "pkg:cargo/tauri-plugin-window-state"

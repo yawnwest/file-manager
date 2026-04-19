@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { Zoom } from "$lib/states/zoom.svelte";
-  import RenameView from "$lib/components/RenameView.svelte";
-  import CleanView from "$lib/components/CleanView.svelte";
+  import OrganizerView from "$lib/components/OrganizerView.svelte";
   import UpdateChecker from "$lib/components/UpdateChecker.svelte";
+  import { Zoom } from "$lib/states/zoom.svelte";
+  import { onDestroy } from "svelte";
 
   const zoom = new Zoom();
-
-  let activeTab = $state<"rename" | "clean">("rename");
+  onDestroy(zoom.cleanup);
 </script>
 
 <svelte:window onkeydown={zoom.handleKeydown} />
@@ -14,48 +13,58 @@
 <UpdateChecker />
 
 <main>
-  <nav class="tabs">
-    <button class:active={activeTab === "rename"} onclick={() => (activeTab = "rename")}>Rename files</button>
-    <button class:active={activeTab === "clean"} onclick={() => (activeTab = "clean")}>Delete empty folders</button>
-  </nav>
+  <div class="tabs" role="tablist">
+    <span class="tab active" role="tab" aria-selected="true">Organizer</span>
+    {#if zoom.value !== 1}
+      <button class="zoom-reset" onclick={() => (zoom.value = 1)}>
+        {Math.round(zoom.value * 100)}%
+      </button>
+    {/if}
+  </div>
 
-  {#if activeTab === "rename"}
-    <RenameView />
-  {:else}
-    <CleanView />
-  {/if}
+  <OrganizerView />
 </main>
 
 <style>
-  :global(body) {
-    margin: 0;
-    padding: 0;
-  }
-
   main {
     box-sizing: border-box;
     width: 100vw;
     max-width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   .tabs {
     display: flex;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid var(--color-border);
     padding: 0 1rem;
   }
 
-  .tabs button {
+  .tabs button,
+  .tabs .tab {
     background: none;
     border: none;
+    border-radius: 0;
     border-bottom: 2px solid transparent;
     padding: 0.5rem 1rem;
-    cursor: pointer;
     font-size: 0.9rem;
     margin-bottom: -1px;
+    color: var(--color-foreground);
   }
 
-  .tabs button.active {
+  .tabs button {
+    cursor: pointer;
+  }
+
+  .tabs .active {
     border-bottom-color: currentColor;
     font-weight: bold;
+  }
+
+  .zoom-reset {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--color-neutral);
   }
 </style>
