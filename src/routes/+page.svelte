@@ -1,11 +1,14 @@
 <script lang="ts">
   import OrganizerView from "$lib/components/OrganizerView.svelte";
+  import WatcherView from "$lib/components/WatcherView.svelte";
   import UpdateChecker from "$lib/components/UpdateChecker.svelte";
   import { Zoom } from "$lib/states/zoom.svelte";
   import { onDestroy } from "svelte";
 
   const zoom = new Zoom();
   onDestroy(zoom.cleanup);
+
+  let activeTab = $state<"organizer" | "watcher">("organizer");
 </script>
 
 <svelte:window onkeydown={zoom.handleKeydown} />
@@ -14,7 +17,20 @@
 
 <main>
   <div class="tabs" role="tablist">
-    <span class="tab active" role="tab" aria-selected="true">Organizer</span>
+    <button
+      class="tab"
+      class:active={activeTab === "organizer"}
+      role="tab"
+      aria-selected={activeTab === "organizer"}
+      onclick={() => (activeTab = "organizer")}>Organizer</button
+    >
+    <button
+      class="tab"
+      class:active={activeTab === "watcher"}
+      role="tab"
+      aria-selected={activeTab === "watcher"}
+      onclick={() => (activeTab = "watcher")}>Watcher</button
+    >
     {#if zoom.value !== 1}
       <button class="zoom-reset" onclick={() => (zoom.value = 1)}>
         {Math.round(zoom.value * 100)}%
@@ -22,7 +38,12 @@
     {/if}
   </div>
 
-  <OrganizerView />
+  <div class="tab-content" class:hidden={activeTab !== "organizer"}>
+    <OrganizerView />
+  </div>
+  <div class="tab-content" class:hidden={activeTab !== "watcher"}>
+    <WatcherView />
+  </div>
 </main>
 
 <style>
@@ -39,6 +60,14 @@
     display: flex;
     border-bottom: 1px solid var(--color-border);
     padding: 0 1rem;
+  }
+
+  .tab-content {
+    display: contents;
+  }
+
+  .tab-content.hidden {
+    display: none;
   }
 
   .tabs button,
