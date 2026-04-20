@@ -158,10 +158,6 @@ export class Organizer {
         if (entry.ignored) continue;
         const fullPath = `${this.path}/${entry.path}`;
         try {
-          if (!(await exists(fullPath))) {
-            entry.status = { ok: false, message: "Not found" };
-            continue;
-          }
           if (this.filters.isEmpty && !(await isEntryEmpty(fullPath, entry.isFile))) {
             entry.status = { ok: false, message: "Not empty" };
             continue;
@@ -206,10 +202,6 @@ export class Organizer {
         if (entry.status) continue;
         const oldFullPath = `${this.path}/${entry.path}`;
         try {
-          if (!(await exists(oldFullPath))) {
-            entry.status = { ok: false, message: "Not found" };
-            continue;
-          }
           if (!sourcePaths.has(newFullPath) && (await exists(newFullPath))) {
             entry.status = { ok: false, message: "Already exists" };
             continue;
@@ -230,6 +222,17 @@ export class Organizer {
     if (!this.moveTargetIsValid) return;
     this._state = "moving";
     try {
+      try {
+        const targetInfo = await stat(this.moveConfig.targetPath);
+        if (!targetInfo.isDirectory) {
+          this._moveTargetError = "Path is not a directory";
+          return;
+        }
+      } catch (e) {
+        this._moveTargetError = errMsg(e);
+        return;
+      }
+
       const targetMap = new SvelteMap<string, Entry>();
       for (const entry of this._entries) {
         if (entry.ignored || !entry.isFile) continue;
@@ -248,10 +251,6 @@ export class Organizer {
         if (entry.status) continue;
         const oldFullPath = `${this.path}/${entry.path}`;
         try {
-          if (!(await exists(oldFullPath))) {
-            entry.status = { ok: false, message: "Not found" };
-            continue;
-          }
           if (await exists(newFullPath)) {
             entry.status = { ok: false, message: "Already exists" };
             continue;

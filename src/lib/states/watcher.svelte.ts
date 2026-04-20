@@ -88,7 +88,7 @@ export class Watcher {
 
   private _onPathChange() {
     if (this._debounceTimer) clearTimeout(this._debounceTimer);
-    this._debounceTimer = setTimeout(() => void this._applyPathChange(), DEBOUNCE_MS);
+    this._debounceTimer = setTimeout(() => void this._applyPathChange().catch(() => {}), DEBOUNCE_MS);
   }
 
   private async _applyPathChange() {
@@ -118,7 +118,8 @@ export class Watcher {
     const tmpDir = `${this._basePath}/tmp`;
     if (!(await exists(tmpDir))) return;
     const entries = await readDir(tmpDir);
-    await Promise.all(entries.map((e) => remove(`${tmpDir}/${e.name}`)));
+    const activeTmpName = this._currentEntry ? `${this._currentEntry.operation}_${this._currentEntry.filename}` : null;
+    await Promise.allSettled(entries.filter((e) => e.name !== activeTmpName).map((e) => remove(`${tmpDir}/${e.name}`)));
   }
 
   private async _startWatching() {
@@ -131,13 +132,13 @@ export class Watcher {
     for (const op of SUBFOLDERS) {
       const entries = await readDir(`${base}/${op}`);
       for (const entry of entries) {
-        void this._onFileCreated(`${base}/${op}/${entry.name}`);
+        void this._onFileCreated(`${base}/${op}/${entry.name}`).catch(() => {});
       }
     }
 
     this._unwatch = await watch(watchPaths, (event) => {
       for (const filePath of event.paths) {
-        void this._onWatchEvent(filePath);
+        void this._onWatchEvent(filePath).catch(() => {});
       }
     });
     this._watching = true;
@@ -149,7 +150,7 @@ export class Watcher {
       this._unwatch = null;
     }
     this._watching = false;
-    if (this.path) void this._clearTmp();
+    if (this.path) void this._clearTmp().catch(() => {});
   }
 
   private async _ensureSubfolders() {
@@ -183,7 +184,7 @@ export class Watcher {
         return;
       }
     }
-    void this._onFileCreated(filePath);
+    void this._onFileCreated(filePath).catch(() => {});
   }
 
   private async _waitUntilStable(filePath: string): Promise<void> {
@@ -250,7 +251,7 @@ export class Watcher {
     const entry = this.log[0];
     this._queue.push(entry);
 
-    if (!this._running) void this._runNext();
+    if (!this._running) void this._runNext().catch(() => {});
   }
 
   private async _runNext() {
@@ -283,7 +284,7 @@ export class Watcher {
       this._currentEntry = null;
     }
 
-    void this._runNext();
+    void this._runNext().catch(() => {});
   }
 
   async cancelCurrent() {
@@ -303,20 +304,22 @@ export class Watcher {
   async retry(entry: LogEntry) {
     if (entry.status !== "error") return;
     if (this._processing.has(entry.filePath)) return;
+    this._processing.add(entry.filePath);
     try {
       const info = await stat(entry.filePath);
       if (!info.isFile) {
+        this._processing.delete(entry.filePath);
         entry.message = "File no longer exists";
         return;
       }
     } catch {
+      this._processing.delete(entry.filePath);
       entry.message = "File no longer exists";
       return;
     }
-    this._processing.add(entry.filePath);
     entry.status = "queued";
     entry.message = undefined;
     this._queue.push(entry);
-    if (!this._running) void this._runNext();
+    if (!this._running) void this._runNext().catch(() => {});
   }
 }

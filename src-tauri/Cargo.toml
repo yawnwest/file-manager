@@ -20,7 +20,7 @@ serde_json = "1"
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tokio = { version = "1", features = ["rt", "process", "fs"] }
+tokio = { version = "1", features = ["rt", "process", "fs", "time"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -4,6 +4,7 @@ use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use tauri::State;
 use tokio::process::Command;
+use tokio::time::{timeout, Duration};
 
 pub type ActivePids = Arc<Mutex<HashSet<u32>>>;
 
@@ -117,14 +118,17 @@ pub async fn process_video(
         .ok_or_else(|| "Failed to get ffmpeg PID".to_string())?;
     pids.lock().unwrap().insert(pid);
 
-    let output = child
-        .wait_with_output()
-        .await
-        .map_err(|e| format!("ffmpeg error: {}", e));
+    let output = match timeout(Duration::from_secs(30 * 60), child.wait_with_output()).await {
+        Ok(result) => result.map_err(|e| format!("ffmpeg error: {}", e))?,
+        Err(_) => {
+            kill_all(&pids);
+            pids.lock().unwrap().remove(&pid);
+            let _ = tokio::fs::remove_file(&tmp_output).await;
+            return Err("ffmpeg timed out after 30 minutes".to_string());
+        }
+    };
 
     pids.lock().unwrap().remove(&pid);
-
-    let output = output?;
 
     if !output.status.success() {
         let _ = tokio::fs::remove_file(&tmp_output).await;
@@ -143,6 +147,13 @@ pub async fn process_video(
     tokio::fs::rename(&tmp_output, &output_path)
         .await
         .map_err(|e| format!("Failed to move output: {}", e))?;
+
+    let output_meta = tokio::fs::metadata(&output_path)
+        .await
+        .map_err(|e| format!("Output verification failed: {}", e))?;
+    if output_meta.len() == 0 {
+        return Err("Output file is empty after processing, input not deleted".to_string());
+    }
 
     if let Err(e) = tokio::fs::remove_file(&input).await {
         return Ok(Some(format!("Input could not be deleted: {}", e)));
