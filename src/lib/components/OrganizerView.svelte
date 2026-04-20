@@ -130,6 +130,9 @@
 
   .field label {
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 
   .field input {
@@ -139,11 +142,5 @@
   .path-error {
     margin: 0.5rem 0 0;
     min-height: 1lh;
-  }
-
-  .field label {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
   }
 </style>

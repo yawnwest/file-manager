@@ -10,3 +10,5 @@ allow-dependencies-licenses:
   - "pkg:cargo/semver"
   - "pkg:cargo/tauri-plugin-process"
   - "pkg:cargo/tauri-plugin-window-state"
+  - "pkg:cargo/libc"
+  - "pkg:cargo/tokio"

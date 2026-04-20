@@ -26,6 +26,7 @@ export function applyRename(name: string, isFile: boolean, regex: RegExp, rename
   for (const [key, value] of Object.entries(groups)) {
     newStem = newStem.replaceAll(`$<${key}>`, value ?? "");
   }
+  newStem = newStem.replace(/[/\\]/g, "_").replace(/\0/g, "");
 
   if (isFile) {
     return newStem + ext;

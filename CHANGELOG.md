@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-20
+
+### Added
+
+- Video watcher: monitor a folder for new videos and automatically process them with ffmpeg
+- Supported operations: rotate left, rotate right, fix encoding (re-encode to H.264 with fixed keyframes)
+
 ## [0.3.0] - 2026-04-19
 
 ### Added
@@ -47,6 +54,7 @@
 - Auto-updater: checks for new releases on launch and prompts to install
 - Zoom in/out via keyboard shortcuts
 
+[0.4.0]: https://github.com/yawnwest/file-manager/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/yawnwest/file-manager/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/yawnwest/file-manager/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/yawnwest/file-manager/compare/v0.1.0...v0.2.0

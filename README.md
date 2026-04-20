@@ -11,6 +11,7 @@ A desktop file batch-renaming tool.
 - Insert captured groups into the rename pattern with one click
 - Move files to a target folder
 - Remove empty folders
+- Watch a folder and automatically process new videos with ffmpeg (rotate, fix encoding)
 - Auto-update on launch
 
 ## Installation

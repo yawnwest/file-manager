@@ -1,20 +1,33 @@
 include!(concat!(env!("OUT_DIR"), "/dep_licenses.rs"));
 
+mod watcher;
+
 #[cfg(target_os = "macos")]
 use tauri::menu::MenuItemKind;
 use tauri::menu::{AboutMetadataBuilder, Menu, PredefinedMenuItem};
+use tauri::Manager;
 
 pub fn run() {
     tauri::Builder::default()
+        .manage(watcher::ActivePids::default())
         .setup(setup)
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .invoke_handler(tauri::generate_handler![
+            watcher::check_ffmpeg,
+            watcher::process_video,
+            watcher::cancel_video
+        ])
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                watcher::kill_all(&app.state::<watcher::ActivePids>());
+            }
+        });
 }
 
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {

@@ -230,6 +230,17 @@ export class Organizer {
     if (!this.moveTargetIsValid) return;
     this._state = "moving";
     try {
+      try {
+        const targetInfo = await stat(this.moveConfig.targetPath);
+        if (!targetInfo.isDirectory) {
+          this._moveTargetError = "Path is not a directory";
+          return;
+        }
+      } catch (e) {
+        this._moveTargetError = errMsg(e);
+        return;
+      }
+
       const targetMap = new SvelteMap<string, Entry>();
       for (const entry of this._entries) {
         if (entry.ignored || !entry.isFile) continue;
