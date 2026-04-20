@@ -37,6 +37,7 @@
       </span>
     </div>
     <p class="error path-error" aria-live="polite">{watcher.pathError}</p>
+    <p class="error ffmpeg-error" aria-live="polite">{watcher.ffmpegError}</p>
   </section>
 
   {#if watcher.path && watcher.pathIsValid}
@@ -129,6 +130,9 @@
 
   .field label {
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 
   .field input {
@@ -137,6 +141,11 @@
 
   .path-error {
     margin: 0.5rem 0 0;
+    min-height: 1lh;
+  }
+
+  .ffmpeg-error {
+    margin: 0.25rem 0 0;
     min-height: 1lh;
   }
 
@@ -179,6 +188,12 @@
     overflow-y: auto;
     min-height: 0;
     padding: 0 1rem 1rem;
+  }
+
+  .log-header {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
   .empty-state {

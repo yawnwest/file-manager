@@ -9,6 +9,19 @@ use tokio::time::{timeout, Duration};
 pub type ActivePids = Arc<Mutex<HashSet<u32>>>;
 
 #[tauri::command]
+pub async fn check_ffmpeg() -> Result<(), String> {
+    Command::new("ffmpeg")
+        .arg("-version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .map_err(|_| "ffmpeg is not installed or not found in PATH".to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn cancel_video(pids: State<'_, ActivePids>) -> Result<(), String> {
     kill_all(&pids);
     Ok(())
@@ -80,10 +93,10 @@ pub async fn process_video(
 
     match operation.as_str() {
         "rotate_left" => {
-            cmd.args(["-vf", "transpose=2"]);
+            cmd.args(["-vf", "transpose=2", "-c:a", "copy"]);
         }
         "rotate_right" => {
-            cmd.args(["-vf", "transpose=1"]);
+            cmd.args(["-vf", "transpose=1", "-c:a", "copy"]);
         }
         "fix" => {
             cmd.args([
