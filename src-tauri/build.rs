@@ -29,10 +29,12 @@ fn generate_dep_licenses() {
 }
 
 fn collect_cargo_licenses(cargo: &str) -> BTreeMap<String, String> {
-    let output = Command::new(cargo)
+    let Ok(output) = Command::new(cargo)
         .args(["metadata", "--format-version", "1"])
         .output()
-        .expect("cargo metadata failed");
+    else {
+        return BTreeMap::new();
+    };
 
     let metadata: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap_or_default();
 

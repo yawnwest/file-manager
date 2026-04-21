@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { exists, mkdir, readDir, remove, stat, watch } from "@tauri-apps/plugin-fs";
 import type { UnwatchFn } from "@tauri-apps/plugin-fs";
 import { SYSTEM_FILES } from "$lib/constants";
+import { errMsg } from "$lib/utils/errors";
 import { SvelteSet } from "svelte/reactivity";
 
 export type Operation = "rotate_left" | "rotate_right" | "fix";
@@ -40,12 +41,14 @@ const VIDEO_EXTENSIONS = new Set([
   "ogv",
 ]);
 
-function errMsg(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
-
 export class Watcher {
-  path = $state("");
+  private _path = $state("");
+  get path() {
+    return this._path;
+  }
+  set path(v: string) {
+    this._path = v.replace(/\/+$/, "");
+  }
   private _pathError = $state("");
   readonly pathIsValid = $derived(!this._pathError);
   ffmpegError = $state("");
@@ -211,9 +214,9 @@ export class Watcher {
         const info = await stat(filePath);
         if (!info.isFile) throw new Error();
       } catch {
-        this._queue.splice(queuedIdx, 1);
+        const [removed] = this._queue.splice(queuedIdx, 1);
         this._processing.delete(filePath);
-        this.log = this.log.filter((e) => e.filePath !== filePath || e.status === "processing");
+        this.log = this.log.filter((e) => e !== removed);
         return;
       }
     }

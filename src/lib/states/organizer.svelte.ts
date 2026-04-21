@@ -1,4 +1,5 @@
 import { SYSTEM_FILES } from "$lib/constants";
+import { errMsg } from "$lib/utils/errors";
 import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
 import safeRegex from "safe-regex2";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
@@ -9,15 +10,17 @@ import type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State }
 export type { EntryStatus } from "./organizer-types";
 export type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State };
 
-function errMsg(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
-
 const DEBOUNCE_MS = 300;
 
 export class Organizer {
   // --- Path ---
-  path = $state("");
+  private _path = $state("");
+  get path() {
+    return this._path;
+  }
+  set path(v: string) {
+    this._path = v.replace(/\/+$/, "");
+  }
   private _pathError = $state("");
   readonly pathIsValid = $derived(!this._pathError);
 

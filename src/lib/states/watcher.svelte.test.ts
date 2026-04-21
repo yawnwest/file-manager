@@ -193,6 +193,23 @@ describe("Watcher", () => {
       await setPath("/test");
       expect(watcher.log.length).toBe(0);
     });
+
+    it("does not enqueue a file that disappears during stability polling", async () => {
+      mockReadDir.mockImplementation((path: string | URL) =>
+        Promise.resolve(path.toString().includes("/rotate_left") ? [fileEntry("clip.mp4")] : []),
+      );
+      let mp4StatCount = 0;
+      mockStat.mockImplementation((path: string | URL) => {
+        if (path.toString().includes("clip.mp4")) {
+          mp4StatCount++;
+          if (mp4StatCount === 1) return Promise.resolve(FILE); // initial check in _onFileCreated
+          return Promise.reject(new Error("file gone")); // during _waitUntilStable
+        }
+        return Promise.resolve(DIRECTORY);
+      });
+      await setPath("/test");
+      expect(watcher.log.length).toBe(0);
+    });
   });
 
   describe("clearFinished", () => {
@@ -286,6 +303,48 @@ describe("Watcher", () => {
       const callsBefore = mockStat.mock.calls.length;
       await watcher.retry(entry);
       expect(mockStat.mock.calls.length).toBe(callsBefore);
+    });
+  });
+
+  describe("cancelCurrent", () => {
+    function setupProcessing() {
+      mockReadDir.mockImplementation((path: string | URL) =>
+        Promise.resolve(path.toString().includes("/rotate_left") ? [fileEntry("clip.mp4")] : []),
+      );
+      mockStat.mockImplementation((path: string | URL) =>
+        Promise.resolve(path.toString().endsWith(".mp4") ? FILE : DIRECTORY),
+      );
+    }
+
+    it("marks the processing entry as Cancelled", async () => {
+      setupProcessing();
+      let rejectPV!: (e: Error) => void;
+      mockInvoke.mockImplementation((cmd: unknown) => {
+        if (cmd === "process_video")
+          return new Promise<null>((_, rej) => {
+            rejectPV = rej;
+          });
+        return Promise.resolve(undefined);
+      });
+
+      await setPath("/test");
+
+      const entry = watcher.log[0];
+      expect(entry.status).toBe("processing");
+
+      await watcher.cancelCurrent();
+      rejectPV(new Error("ffmpeg killed"));
+      for (let i = 0; i < 20; i++) await tick();
+
+      expect(entry.status).toBe("error");
+      expect(entry.message).toBe("Cancelled");
+    });
+
+    it("does nothing when nothing is processing", async () => {
+      await setPath("/test");
+      const callsBefore = mockInvoke.mock.calls.length;
+      await watcher.cancelCurrent();
+      expect(mockInvoke.mock.calls.length).toBe(callsBefore);
     });
   });
 });

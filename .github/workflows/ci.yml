@@ -40,6 +40,12 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v6
+      - name: Cache apt packages
+        if: runner.os == 'Linux'
+        uses: actions/cache@v5
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ hashFiles('.github/workflows/ci.yml') }}
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |

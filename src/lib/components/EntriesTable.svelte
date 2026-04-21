@@ -87,7 +87,18 @@
           {@const isExpanded = expanded.has(entry.path)}
           <tr class:ignored={entry.ignored} class:even={(virtualState.start + i) % 2 === 1}>
             <td class="col-ignore"><input type="checkbox" bind:checked={entry.ignored} /></td>
-            <td class="col-path" onclick={() => toggleExpand(entry.path)} role="button" tabindex="0">
+            <td
+              class="col-path"
+              onclick={() => toggleExpand(entry.path)}
+              onkeydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleExpand(entry.path);
+                }
+              }}
+              role="button"
+              tabindex="0"
+            >
               <span class="expand-chevron" class:expanded={isExpanded}>›</span>
               {entry.isFile ? "📄" : "📁"}
               {entry.path}
@@ -101,7 +112,18 @@
                 {/if}
               </td>
             {/if}
-            <td class="col-status" onclick={() => toggleExpand(entry.path)} role="button" tabindex="0">
+            <td
+              class="col-status"
+              onclick={() => toggleExpand(entry.path)}
+              onkeydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggleExpand(entry.path);
+                }
+              }}
+              role="button"
+              tabindex="0"
+            >
               {#if entry.status?.ok === true}
                 <span class="status-ok"
                   >{action === "rename" ? "Renamed" : action === "move" ? "Moved" : "Deleted"}</span
