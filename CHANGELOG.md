@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-04-21
+
+### Fixed
+
+- ffmpeg and ffprobe are now found on macOS when installed via Homebrew (`/opt/homebrew/bin`) and the app environment does not inherit the shell PATH
+- Fix operation now uses format-specific encoder settings instead of generic H.264 for all formats
+- Rotate operation (left/right) detects the original codec via ffprobe and applies matching lossless encoder settings
+
 ## [0.4.0] - 2026-04-20
 
 ### Added
@@ -54,6 +62,7 @@
 - Auto-updater: checks for new releases on launch and prompts to install
 - Zoom in/out via keyboard shortcuts
 
+[0.4.1]: https://github.com/yawnwest/file-manager/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/yawnwest/file-manager/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/yawnwest/file-manager/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/yawnwest/file-manager/compare/v0.2.0...v0.2.1
