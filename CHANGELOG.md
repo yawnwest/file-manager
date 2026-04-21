@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-04-21
+
+### Fixed
+
+- ffmpeg und ffprobe werden unter macOS nun auch gefunden, wenn sie über Homebrew installiert wurden (`/opt/homebrew/bin`) und die App-Umgebung den Shell-PATH nicht erbt
+
+### Changed
+
+- Fix-Operation verwendet jetzt format-spezifische Encoder-Einstellungen statt generischem H.264 für alle Formate:
+  - WebM → VP9 (`libvpx-vp9`)
+  - AVI → MJPEG (`mjpeg`)
+  - WMV → WMV2 (`wmv2`)
+  - MPEG/MPG → MPEG-2 (`mpeg2video`)
+  - OGV → Theora (`libtheora`)
+  - Alle anderen (MP4, MKV, MOV, M4V, FLV, TS, MTS, M2TS, 3GP) → H.264 (`libx264`)
+- Rotate-Operation (links/rechts) erkennt den Originalcodec per ffprobe und verwendet passende verlustfreie Encoder-Einstellungen (H.264, H.265, VP9, ProRes, MJPEG, Theora, MPEG-2, WMV)
+
 ## [0.4.0] - 2026-04-20
 
 ### Added
