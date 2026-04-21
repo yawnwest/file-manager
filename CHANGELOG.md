@@ -6,18 +6,9 @@
 
 ### Fixed
 
-- ffmpeg und ffprobe werden unter macOS nun auch gefunden, wenn sie über Homebrew installiert wurden (`/opt/homebrew/bin`) und die App-Umgebung den Shell-PATH nicht erbt
-
-### Changed
-
-- Fix-Operation verwendet jetzt format-spezifische Encoder-Einstellungen statt generischem H.264 für alle Formate:
-  - WebM → VP9 (`libvpx-vp9`)
-  - AVI → MJPEG (`mjpeg`)
-  - WMV → WMV2 (`wmv2`)
-  - MPEG/MPG → MPEG-2 (`mpeg2video`)
-  - OGV → Theora (`libtheora`)
-  - Alle anderen (MP4, MKV, MOV, M4V, FLV, TS, MTS, M2TS, 3GP) → H.264 (`libx264`)
-- Rotate-Operation (links/rechts) erkennt den Originalcodec per ffprobe und verwendet passende verlustfreie Encoder-Einstellungen (H.264, H.265, VP9, ProRes, MJPEG, Theora, MPEG-2, WMV)
+- ffmpeg and ffprobe are now found on macOS when installed via Homebrew (`/opt/homebrew/bin`) and the app environment does not inherit the shell PATH
+- Fix operation now uses format-specific encoder settings instead of generic H.264 for all formats
+- Rotate operation (left/right) detects the original codec via ffprobe and applies matching lossless encoder settings
 
 ## [0.4.0] - 2026-04-20
 
@@ -71,6 +62,7 @@
 - Auto-updater: checks for new releases on launch and prompts to install
 - Zoom in/out via keyboard shortcuts
 
+[0.4.1]: https://github.com/yawnwest/file-manager/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/yawnwest/file-manager/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/yawnwest/file-manager/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/yawnwest/file-manager/compare/v0.2.0...v0.2.1
