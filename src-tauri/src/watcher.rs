@@ -17,65 +17,12 @@ fn ffmpeg_command() -> Command {
             "/usr/bin/ffmpeg",
         ];
         for path in &candidates {
-            if std::path::Path::new(path).exists() {
+            if Path::new(path).exists() {
                 return Command::new(path);
             }
         }
     }
     Command::new("ffmpeg")
-}
-
-fn ffprobe_command() -> Command {
-    #[cfg(target_os = "macos")]
-    {
-        let candidates = [
-            "/opt/homebrew/bin/ffprobe",
-            "/usr/local/bin/ffprobe",
-            "/usr/bin/ffprobe",
-        ];
-        for path in &candidates {
-            if std::path::Path::new(path).exists() {
-                return Command::new(path);
-            }
-        }
-    }
-    Command::new("ffprobe")
-}
-
-async fn detect_video_codec(input: &str) -> Result<String, String> {
-    let output = ffprobe_command()
-        .args([
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "stream=codec_name",
-            "-of",
-            "default=noprint_wrappers=1:nokey=1",
-            input,
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-}
-
-fn rotate_codec_args(codec: &str) -> Vec<&'static str> {
-    match codec {
-        "h264" => vec!["-c:v", "libx264", "-crf", "0", "-preset", "veryslow"],
-        "hevc" => vec!["-c:v", "libx265", "-crf", "0", "-preset", "veryslow"],
-        "vp9" => vec!["-c:v", "libvpx-vp9", "-lossless", "1"],
-        "prores" => vec!["-c:v", "prores_ks", "-profile:v", "4444"],
-        "mjpeg" => vec!["-c:v", "mjpeg", "-q:v", "1"],
-        "theora" => vec!["-c:v", "libtheora", "-q:v", "10"],
-        "mpeg2video" => vec!["-c:v", "mpeg2video", "-q:v", "1"],
-        "wmv1" | "wmv2" | "wmv3" => vec!["-c:v", "wmv2", "-q:v", "1"],
-        _ => vec!["-c:v", "libx264", "-crf", "0", "-preset", "veryslow"],
-    }
 }
 
 #[tauri::command]
@@ -168,75 +115,19 @@ pub async fn process_video(
             } else {
                 "transpose=1"
             };
-            let codec = detect_video_codec(&input).await.unwrap_or_default();
-            let codec_args = rotate_codec_args(&codec);
             cmd.args(["-vf", transpose]);
-            cmd.args(&codec_args);
+            cmd.args(["-c:v", "libx264", "-crf", "18"]);
             cmd.args(["-c:a", "copy"]);
         }
         "fix" => {
-            let ext = Path::new(&filename)
-                .extension()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_lowercase();
-            match ext.as_str() {
-                "webm" => {
-                    cmd.args([
-                        "-c:v",
-                        "libvpx-vp9",
-                        "-crf",
-                        "18",
-                        "-b:v",
-                        "0",
-                        "-g",
-                        "30",
-                        "-keyint_min",
-                        "30",
-                        "-c:a",
-                        "copy",
-                    ]);
-                }
-                "avi" => {
-                    cmd.args(["-c:v", "mjpeg", "-q:v", "2", "-c:a", "copy"]);
-                }
-                "wmv" => {
-                    cmd.args(["-c:v", "wmv2", "-q:v", "2", "-g", "30", "-c:a", "copy"]);
-                }
-                "mpeg" | "mpg" => {
-                    cmd.args([
-                        "-c:v",
-                        "mpeg2video",
-                        "-q:v",
-                        "2",
-                        "-g",
-                        "30",
-                        "-keyint_min",
-                        "30",
-                        "-c:a",
-                        "copy",
-                    ]);
-                }
-                "ogv" => {
-                    cmd.args(["-c:v", "libtheora", "-q:v", "7", "-g", "30", "-c:a", "copy"]);
-                }
-                _ => {
-                    cmd.args([
-                        "-c:v",
-                        "libx264",
-                        "-crf",
-                        "18",
-                        "-g",
-                        "30",
-                        "-keyint_min",
-                        "30",
-                        "-sc_threshold",
-                        "0",
-                        "-c:a",
-                        "copy",
-                    ]);
-                }
-            }
+            cmd.args([
+                "-c",
+                "copy",
+                "-avoid_negative_ts",
+                "make_zero",
+                "-fflags",
+                "+genpts",
+            ]);
         }
         _ => return Err(format!("Unknown operation: {}", operation)),
     }
