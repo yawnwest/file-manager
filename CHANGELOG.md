@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-04-24
+
+### Changed
+
+- Fix operation now uses stream copy (`-c copy`) with timestamp repair for all formats instead of format-specific re-encoding
+
 ## [0.4.1] - 2026-04-21
 
 ### Fixed
@@ -62,6 +68,7 @@
 - Auto-updater: checks for new releases on launch and prompts to install
 - Zoom in/out via keyboard shortcuts
 
+[0.4.2]: https://github.com/yawnwest/file-manager/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/yawnwest/file-manager/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/yawnwest/file-manager/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/yawnwest/file-manager/compare/v0.2.1...v0.3.0

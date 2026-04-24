@@ -8,38 +8,35 @@ use tokio::time::{timeout, Duration};
 
 pub type ActivePids = Arc<Mutex<HashSet<u32>>>;
 
+fn find_binary(name: &str, candidates: &[&str]) -> Command {
+    for path in candidates {
+        if cfg!(target_os = "macos") && Path::new(path).exists() {
+            return Command::new(path);
+        }
+    }
+    Command::new(name)
+}
+
 fn ffmpeg_command() -> Command {
-    #[cfg(target_os = "macos")]
-    {
-        let candidates = [
+    find_binary(
+        "ffmpeg",
+        &[
             "/opt/homebrew/bin/ffmpeg",
             "/usr/local/bin/ffmpeg",
             "/usr/bin/ffmpeg",
-        ];
-        for path in &candidates {
-            if std::path::Path::new(path).exists() {
-                return Command::new(path);
-            }
-        }
-    }
-    Command::new("ffmpeg")
+        ],
+    )
 }
 
 fn ffprobe_command() -> Command {
-    #[cfg(target_os = "macos")]
-    {
-        let candidates = [
+    find_binary(
+        "ffprobe",
+        &[
             "/opt/homebrew/bin/ffprobe",
             "/usr/local/bin/ffprobe",
             "/usr/bin/ffprobe",
-        ];
-        for path in &candidates {
-            if std::path::Path::new(path).exists() {
-                return Command::new(path);
-            }
-        }
-    }
-    Command::new("ffprobe")
+        ],
+    )
 }
 
 async fn detect_video_codec(input: &str) -> Result<String, String> {
@@ -66,16 +63,60 @@ async fn detect_video_codec(input: &str) -> Result<String, String> {
 
 fn rotate_codec_args(codec: &str) -> Vec<&'static str> {
     match codec {
-        "h264" => vec!["-c:v", "libx264", "-crf", "0", "-preset", "veryslow"],
-        "hevc" => vec!["-c:v", "libx265", "-crf", "0", "-preset", "veryslow"],
-        "vp9" => vec!["-c:v", "libvpx-vp9", "-lossless", "1"],
-        "prores" => vec!["-c:v", "prores_ks", "-profile:v", "4444"],
-        "mjpeg" => vec!["-c:v", "mjpeg", "-q:v", "1"],
-        "theora" => vec!["-c:v", "libtheora", "-q:v", "10"],
-        "mpeg2video" => vec!["-c:v", "mpeg2video", "-q:v", "1"],
-        "wmv1" | "wmv2" | "wmv3" => vec!["-c:v", "wmv2", "-q:v", "1"],
-        _ => vec!["-c:v", "libx264", "-crf", "0", "-preset", "veryslow"],
+        "h264" => vec!["-c:v", "libx264", "-crf", "18"],
+        "hevc" => vec!["-c:v", "libx265", "-crf", "18"],
+        "vp9" => vec!["-c:v", "libvpx-vp9", "-crf", "18", "-b:v", "0"],
+        "prores" => vec!["-c:v", "prores_ks", "-profile:v", "3"],
+        "mjpeg" => vec!["-c:v", "mjpeg", "-q:v", "2"],
+        "theora" => vec!["-c:v", "libtheora", "-q:v", "7"],
+        "mpeg2video" => vec!["-c:v", "mpeg2video", "-q:v", "2"],
+        "wmv1" | "wmv2" | "wmv3" => vec!["-c:v", "wmv2", "-q:v", "2"],
+        _ => vec!["-c:v", "libx264", "-crf", "18"],
     }
+}
+
+async fn run_ffmpeg(mut cmd: Command, tmp_output: &str, pids: &ActivePids) -> Result<(), String> {
+    cmd.arg(tmp_output)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped());
+
+    let child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to start ffmpeg: {}", e))?;
+
+    let pid = child
+        .id()
+        .ok_or_else(|| "Failed to get ffmpeg PID".to_string())?;
+    pids.lock().unwrap().insert(pid);
+
+    let output = match timeout(Duration::from_secs(30 * 60), child.wait_with_output()).await {
+        Ok(result) => result.map_err(|e| format!("ffmpeg error: {}", e))?,
+        Err(_) => {
+            kill_all(pids);
+            pids.lock().unwrap().remove(&pid);
+            let _ = tokio::fs::remove_file(tmp_output).await;
+            return Err("ffmpeg timed out after 30 minutes".to_string());
+        }
+    };
+
+    pids.lock().unwrap().remove(&pid);
+
+    if !output.status.success() {
+        let _ = tokio::fs::remove_file(tmp_output).await;
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let last_line = stderr.lines().last().unwrap_or("").trim().to_string();
+        return Err(if last_line.is_empty() {
+            format!(
+                "ffmpeg exited with code {}",
+                output.status.code().unwrap_or(-1)
+            )
+        } else {
+            last_line
+        });
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -169,117 +210,24 @@ pub async fn process_video(
                 "transpose=1"
             };
             let codec = detect_video_codec(&input).await.unwrap_or_default();
-            let codec_args = rotate_codec_args(&codec);
             cmd.args(["-vf", transpose]);
-            cmd.args(&codec_args);
+            cmd.args(rotate_codec_args(&codec));
             cmd.args(["-c:a", "copy"]);
         }
         "fix" => {
-            let ext = Path::new(&filename)
-                .extension()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_lowercase();
-            match ext.as_str() {
-                "webm" => {
-                    cmd.args([
-                        "-c:v",
-                        "libvpx-vp9",
-                        "-crf",
-                        "18",
-                        "-b:v",
-                        "0",
-                        "-g",
-                        "30",
-                        "-keyint_min",
-                        "30",
-                        "-c:a",
-                        "copy",
-                    ]);
-                }
-                "avi" => {
-                    cmd.args(["-c:v", "mjpeg", "-q:v", "2", "-c:a", "copy"]);
-                }
-                "wmv" => {
-                    cmd.args(["-c:v", "wmv2", "-q:v", "2", "-g", "30", "-c:a", "copy"]);
-                }
-                "mpeg" | "mpg" => {
-                    cmd.args([
-                        "-c:v",
-                        "mpeg2video",
-                        "-q:v",
-                        "2",
-                        "-g",
-                        "30",
-                        "-keyint_min",
-                        "30",
-                        "-c:a",
-                        "copy",
-                    ]);
-                }
-                "ogv" => {
-                    cmd.args(["-c:v", "libtheora", "-q:v", "7", "-g", "30", "-c:a", "copy"]);
-                }
-                _ => {
-                    cmd.args([
-                        "-c:v",
-                        "libx264",
-                        "-crf",
-                        "18",
-                        "-g",
-                        "30",
-                        "-keyint_min",
-                        "30",
-                        "-sc_threshold",
-                        "0",
-                        "-c:a",
-                        "copy",
-                    ]);
-                }
-            }
+            cmd.args([
+                "-c",
+                "copy",
+                "-avoid_negative_ts",
+                "make_zero",
+                "-fflags",
+                "+genpts",
+            ]);
         }
         _ => return Err(format!("Unknown operation: {}", operation)),
     }
 
-    cmd.arg(&tmp_output);
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped());
-
-    let child = cmd
-        .spawn()
-        .map_err(|e| format!("Failed to start ffmpeg: {}", e))?;
-
-    let pid = child
-        .id()
-        .ok_or_else(|| "Failed to get ffmpeg PID".to_string())?;
-    pids.lock().unwrap().insert(pid);
-
-    let output = match timeout(Duration::from_secs(30 * 60), child.wait_with_output()).await {
-        Ok(result) => result.map_err(|e| format!("ffmpeg error: {}", e))?,
-        Err(_) => {
-            kill_all(&pids);
-            pids.lock().unwrap().remove(&pid);
-            let _ = tokio::fs::remove_file(&tmp_output).await;
-            return Err("ffmpeg timed out after 30 minutes".to_string());
-        }
-    };
-
-    pids.lock().unwrap().remove(&pid);
-
-    if !output.status.success() {
-        let _ = tokio::fs::remove_file(&tmp_output).await;
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let last_line = stderr.lines().last().unwrap_or("").trim().to_string();
-        return Err(if last_line.is_empty() {
-            format!(
-                "ffmpeg exited with code {}",
-                output.status.code().unwrap_or(-1)
-            )
-        } else {
-            last_line
-        });
-    }
+    run_ffmpeg(cmd, &tmp_output, &pids).await?;
 
     tokio::fs::rename(&tmp_output, &output_path)
         .await
