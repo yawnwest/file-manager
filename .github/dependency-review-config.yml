@@ -1,6 +1,3 @@
-allow-ghsas:
-  - GHSA-cq8v-f236-94qc
-
 allow-dependencies-licenses:
   - "pkg:githubactions/pnpm/action-setup"
   - "pkg:npm/@tauri-apps/api"
