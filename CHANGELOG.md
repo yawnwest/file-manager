@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- Orphan file filter: show only files that have no partner with a matching base name and one of the configured extensions (e.g. `.raf` files without a corresponding `.jpg`/`.heic`). Camera naming variants with `_O`/`_o` (e.g. `IMG_O1234.AAE`) are normalized to match against the main base name.
+- Write tagged-files.txt (macOS only): writes a `tagged-files.txt` per directory listing all items that have a macOS Finder tag. Respects the Recursive setting.
+
 ## [0.4.2] - 2026-04-24
 
 ### Changed

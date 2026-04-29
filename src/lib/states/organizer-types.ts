@@ -29,4 +29,5 @@ export interface FilterConfig {
   excludeFolders: boolean;
   excludeSystemFiles: boolean;
   isEmpty: boolean;
+  orphanCheck?: { partnerExtensions: string[] };
 }

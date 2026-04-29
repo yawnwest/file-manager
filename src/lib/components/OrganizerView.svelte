@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Organizer } from "$lib/states/organizer.svelte";
   import { confirm, open } from "@tauri-apps/plugin-dialog";
+  import { invoke } from "@tauri-apps/api/core";
   import { onDestroy } from "svelte";
   import ActionPanel from "./ActionPanel.svelte";
   import EntriesTable from "./EntriesTable.svelte";
@@ -58,6 +59,27 @@
     });
     if (ok) await organizer.renameAll();
   }
+
+  let writingTags = $state(false);
+  let writeTagsResult = $state<{ written: number; unchanged: number } | null>(null);
+
+  $effect(() => {
+    void organizer.path;
+    writeTagsResult = null;
+  });
+
+  async function writeTaggedFiles() {
+    writingTags = true;
+    writeTagsResult = null;
+    try {
+      writeTagsResult = await invoke("write_tagged_files", {
+        dir: organizer.path,
+        recursive: organizer.scanConfig.recursive,
+      });
+    } finally {
+      writingTags = false;
+    }
+  }
 </script>
 
 <div class="view">
@@ -100,6 +122,10 @@
     onMoveAll={moveAll}
     onRenameAll={renameAll}
     onOpenMoveTarget={openMoveTarget}
+    onWriteTaggedFiles={writeTaggedFiles}
+    disabledWrite={!organizer.path || writingTags}
+    {writingTags}
+    {writeTagsResult}
   />
 
   <EntriesTable {organizer} {action} />

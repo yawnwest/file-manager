@@ -10,6 +10,10 @@
     onMoveAll,
     onRenameAll,
     onOpenMoveTarget,
+    onWriteTaggedFiles,
+    disabledWrite,
+    writingTags,
+    writeTagsResult,
   }: {
     action: "delete" | "move" | "rename";
     organizer: Organizer;
@@ -19,7 +23,13 @@
     onMoveAll: () => void;
     onRenameAll: () => void;
     onOpenMoveTarget: () => void;
+    onWriteTaggedFiles: () => void;
+    disabledWrite: boolean;
+    writingTags: boolean;
+    writeTagsResult: { written: number; unchanged: number } | null;
   } = $props();
+
+  const IS_MACOS = navigator.userAgent.includes("Mac OS X");
 
   let matchPatternInput = $state<HTMLInputElement>();
   let renamePatternInput = $state<HTMLInputElement>();
@@ -160,6 +170,18 @@
       <button onclick={onRenameAll} disabled={disabledExecute || organizer.renameCount === 0}> Rename all </button>
     </div>
   {/if}
+
+  {#if IS_MACOS}
+    <hr class="tool-divider" />
+    <div class="tool-row">
+      <button onclick={onWriteTaggedFiles} disabled={disabledWrite}>
+        {writingTags ? "Writing…" : "Write tagged-files.txt"}
+      </button>
+      {#if writeTagsResult !== null}
+        <span class="tool-result">{writeTagsResult.written} written, {writeTagsResult.unchanged} unchanged</span>
+      {/if}
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -240,5 +262,22 @@
   .action-execute {
     display: flex;
     justify-content: flex-end;
+  }
+
+  .tool-divider {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 0;
+  }
+
+  .tool-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .tool-result {
+    font-size: 0.875rem;
+    opacity: 0.7;
   }
 </style>

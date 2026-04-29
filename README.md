@@ -11,6 +11,8 @@ A desktop file batch-renaming tool.
 - Insert captured groups into the rename pattern with one click
 - Move files to a target folder
 - Remove empty folders
+- Filter orphaned sidecar files (e.g. RAW files without a matching JPEG/HEIC partner)
+- Write a `tagged-files.txt` listing macOS Finder-tagged items per directory (macOS only)
 - Watch a folder and automatically process new videos with ffmpeg (rotate, fix encoding)
 - Auto-update on launch
 

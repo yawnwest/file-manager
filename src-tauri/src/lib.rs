@@ -3,6 +3,75 @@ include!(concat!(env!("OUT_DIR"), "/dep_licenses.rs"));
 mod watcher;
 
 #[cfg(target_os = "macos")]
+fn run_mdfind(dir: &str) -> Result<String, String> {
+    let output = std::process::Command::new("mdfind")
+        .args(["-onlyin", dir, "kMDItemUserTags == \"*\""])
+        .output()
+        .map_err(|e| e.to_string())?;
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+const TAGGED_FILES_NAME: &str = "tagged-files.txt";
+
+fn group_tagged_by_dir(stdout: &str) -> std::collections::HashMap<String, Vec<String>> {
+    use std::collections::HashMap;
+    let mut by_dir: HashMap<String, Vec<String>> = HashMap::new();
+    for line in stdout.lines() {
+        let path = std::path::Path::new(line);
+        if path
+            .file_name()
+            .map(|n| n == TAGGED_FILES_NAME)
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        if let (Some(parent), Some(name)) = (path.parent(), path.file_name()) {
+            by_dir
+                .entry(parent.to_string_lossy().into_owned())
+                .or_default()
+                .push(name.to_string_lossy().into_owned());
+        }
+    }
+    by_dir
+}
+
+#[tauri::command]
+async fn write_tagged_files(dir: String, recursive: bool) -> Result<serde_json::Value, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let stdout = run_mdfind(&dir)?;
+        let mut by_dir = group_tagged_by_dir(&stdout);
+        if !recursive {
+            let root = dir.trim_end_matches('/');
+            by_dir.retain(|k, _| k == root);
+        }
+
+        let mut written = 0usize;
+        let mut unchanged = 0usize;
+
+        for (dir_path, mut names) in by_dir {
+            names.sort();
+            let new_content = names.join("\n") + "\n";
+            let txt_path = std::path::Path::new(&dir_path).join(TAGGED_FILES_NAME);
+            let existing = std::fs::read_to_string(&txt_path).unwrap_or_default();
+            if existing == new_content {
+                unchanged += 1;
+            } else {
+                std::fs::write(&txt_path, new_content).map_err(|e| e.to_string())?;
+                written += 1;
+            }
+        }
+
+        Ok(serde_json::json!({ "written": written, "unchanged": unchanged }))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (dir, recursive);
+        Ok(serde_json::json!({ "written": 0, "unchanged": 0 }))
+    }
+}
+
+#[cfg(target_os = "macos")]
 use tauri::menu::MenuItemKind;
 use tauri::menu::{AboutMetadataBuilder, Menu, PredefinedMenuItem};
 use tauri::Manager;
@@ -19,7 +88,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             watcher::check_ffmpeg,
             watcher::process_video,
-            watcher::cancel_video
+            watcher::cancel_video,
+            write_tagged_files
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -310,5 +380,85 @@ mod tests {
     fn npm_empty_dependencies() {
         let json = r#"{"dependencies": {}}"#;
         assert!(parse_npm_deps(json).is_empty());
+    }
+
+    // --- group_tagged_by_dir ---
+
+    #[test]
+    fn group_tagged_groups_by_parent() {
+        let stdout = "/photos/img.raf\n/photos/img.jpg\n/videos/clip.mov\n";
+        let result = group_tagged_by_dir(stdout);
+        let mut photos = result["/photos"].clone();
+        photos.sort();
+        assert_eq!(photos, vec!["img.jpg", "img.raf"]);
+        assert_eq!(result["/videos"], vec!["clip.mov"]);
+    }
+
+    #[test]
+    fn group_tagged_excludes_tagged_files_txt() {
+        let stdout = "/photos/img.raf\n/photos/tagged-files.txt\n/photos/img.jpg\n";
+        let result = group_tagged_by_dir(stdout);
+        let photos = &result["/photos"];
+        assert!(!photos.contains(&"tagged-files.txt".to_string()));
+        assert_eq!(photos.len(), 2);
+    }
+
+    #[test]
+    fn group_tagged_empty_input() {
+        assert!(group_tagged_by_dir("").is_empty());
+    }
+
+    #[test]
+    fn group_tagged_single_file() {
+        let stdout = "/photos/img.raf\n";
+        let result = group_tagged_by_dir(stdout);
+        assert_eq!(result["/photos"], vec!["img.raf"]);
+    }
+
+    #[test]
+    fn group_tagged_multiple_dirs() {
+        let stdout = "/a/x.raf\n/b/y.xmp\n/a/z.aae\n";
+        let result = group_tagged_by_dir(stdout);
+        assert_eq!(result.len(), 2);
+        let mut a = result["/a"].clone();
+        a.sort();
+        assert_eq!(a, vec!["x.raf", "z.aae"]);
+    }
+
+    #[test]
+    fn write_tagged_non_recursive_only_root() {
+        let stdout = "/photos/img.raf\n/photos/2024/img.jpg\n";
+        let mut by_dir = group_tagged_by_dir(stdout);
+        let root = "/photos";
+        by_dir.retain(|k, _| k == root);
+        assert!(by_dir.contains_key("/photos"));
+        assert!(!by_dir.contains_key("/photos/2024"));
+    }
+
+    #[test]
+    fn group_tagged_ignores_blank_lines() {
+        let stdout = "/photos/img.raf\n\n/photos/img.jpg\n";
+        let result = group_tagged_by_dir(stdout);
+        // blank line has no parent/name → skipped
+        assert_eq!(result["/photos"].len(), 2);
+    }
+
+    #[test]
+    fn write_tagged_recursive_keeps_subdirs() {
+        let stdout = "/photos/img.raf\n/photos/2024/img.jpg\n";
+        let by_dir = group_tagged_by_dir(stdout);
+        // recursive=true: no retain → subdirs kept
+        assert!(by_dir.contains_key("/photos"));
+        assert!(by_dir.contains_key("/photos/2024"));
+    }
+
+    #[test]
+    fn write_tagged_content_is_sorted_with_trailing_newline() {
+        let stdout = "/photos/c.raf\n/photos/a.jpg\n/photos/b.xmp\n";
+        let result = group_tagged_by_dir(stdout);
+        let mut names = result["/photos"].clone();
+        names.sort();
+        let content = names.join("\n") + "\n";
+        assert_eq!(content, "a.jpg\nb.xmp\nc.raf\n");
     }
 }

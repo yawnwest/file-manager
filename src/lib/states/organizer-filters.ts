@@ -46,6 +46,16 @@ export function globToRegex(pattern: string): RegExp | null {
   }
 }
 
+export function isOrphan(siblingExtensions: Set<string>, partnerExtensions: string[]): boolean {
+  return !partnerExtensions.some((ext) => siblingExtensions.has(ext));
+}
+
+// Camera sidecar files (e.g. IMG_O1234.AAE) use _O prefix; the partner JPEG omits it.
+// Replaces the first _o so IMG_O1234 → IMG_1234, enabling partner lookup under the main base.
+export function normalizeOrphanBase(base: string): string {
+  return base.replace("_o", "_");
+}
+
 export function matchesFilters(
   relPath: string,
   isFile: boolean,
