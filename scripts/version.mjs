@@ -35,8 +35,8 @@ execSync("cargo update --workspace", { cwd: "src-tauri", stdio: "inherit" });
 console.log(`Bumped to ${version}`);
 
 if (isLifecycleHook) {
-  // Stage the extra files so pnpm includes them in its version commit
-  execSync(`git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json`);
+  // Stage package.json (pnpm bumps it but doesn't stage it) + extra files
+  execSync(`git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json`);
 } else {
   execSync(`git add package.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json`);
   execSync(`git commit -m "chore: bump version to ${version}"`);
