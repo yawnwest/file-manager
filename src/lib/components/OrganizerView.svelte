@@ -61,7 +61,7 @@
   }
 
   let writingTags = $state(false);
-  let writeTagsResult = $state<{ written: number; unchanged: number } | null>(null);
+  let writeTagsResult = $state<{ written: number; unchanged: number; deleted: number } | null>(null);
 
   $effect(() => {
     void organizer.path;

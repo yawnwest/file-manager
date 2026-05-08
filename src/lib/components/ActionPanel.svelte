@@ -26,7 +26,7 @@
     onWriteTaggedFiles: () => void;
     disabledWrite: boolean;
     writingTags: boolean;
-    writeTagsResult: { written: number; unchanged: number } | null;
+    writeTagsResult: { written: number; unchanged: number; deleted: number } | null;
   } = $props();
 
   const IS_MACOS = navigator.userAgent.includes("Mac OS X");
@@ -178,7 +178,11 @@
         {writingTags ? "Writing…" : "Write tagged-files.txt"}
       </button>
       {#if writeTagsResult !== null}
-        <span class="tool-result">{writeTagsResult.written} written, {writeTagsResult.unchanged} unchanged</span>
+        <span class="tool-result"
+          >{writeTagsResult.written} written, {writeTagsResult.unchanged} unchanged{writeTagsResult.deleted
+            ? `, ${writeTagsResult.deleted} deleted`
+            : ""}</span
+        >
       {/if}
     </div>
   {/if}
