@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-08
+
+### Added
+
+- Orphan file filter: show only files that have no partner with a matching base name and one of the configured extensions (e.g. `.raf` files without a corresponding `.jpg`/`.heic`). Camera naming variants with `_O`/`_o` (e.g. `IMG_O1234.AAE`) are normalized to match against the main base name.
+- Write tagged-files.txt (macOS only): writes a `tagged-files.txt` per directory listing all items that have a macOS Finder tag. Respects the Recursive setting.
+
 ## [0.4.2] - 2026-04-24
 
 ### Changed
@@ -68,6 +75,7 @@
 - Auto-updater: checks for new releases on launch and prompts to install
 - Zoom in/out via keyboard shortcuts
 
+[0.5.0]: https://github.com/yawnwest/file-manager/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/yawnwest/file-manager/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/yawnwest/file-manager/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/yawnwest/file-manager/compare/v0.3.0...v0.4.0

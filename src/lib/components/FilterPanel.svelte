@@ -15,8 +15,11 @@
       <input type="checkbox" bind:checked={filters.excludeFiles} {disabled} /> Exclude Files
     </label>
     <label>
-      <input type="checkbox" bind:checked={filters.excludeFolders} disabled={disabled || lockedExcludeFolders} /> Exclude
-      Folders
+      <input
+        type="checkbox"
+        bind:checked={filters.excludeFolders}
+        disabled={disabled || lockedExcludeFolders || !!filters.orphanCheck}
+      /> Exclude Folders
     </label>
     <label>
       <input type="checkbox" bind:checked={filters.excludeSystemFiles} {disabled} /> Exclude system files
@@ -24,7 +27,35 @@
     <label>
       <input type="checkbox" bind:checked={filters.isEmpty} {disabled} /> Is empty
     </label>
+    <label>
+      <input
+        type="checkbox"
+        checked={!!filters.orphanCheck}
+        onchange={(e) => {
+          filters.orphanCheck = e.currentTarget.checked ? { partnerExtensions: [] } : undefined;
+          if (e.currentTarget.checked) filters.excludeFolders = true;
+        }}
+        {disabled}
+      /> Only orphans
+    </label>
   </div>
+  {#if filters.orphanCheck}
+    <div class="filter-row">
+      <div class="filter-field">
+        <label for="orphan-partners">Partner extensions</label>
+        <input
+          id="orphan-partners"
+          placeholder="jpg, heic, mov, hif"
+          {disabled}
+          value={filters.orphanCheck.partnerExtensions.join(", ")}
+          oninput={(e) => {
+            if (filters.orphanCheck)
+              filters.orphanCheck.partnerExtensions = parseList(e.currentTarget.value).map((s) => s.toLowerCase());
+          }}
+        />
+      </div>
+    </div>
+  {/if}
   <div class="filter-row">
     <div class="filter-field">
       <label for="include-patterns">Include</label>

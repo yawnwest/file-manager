@@ -3,7 +3,7 @@ import { errMsg } from "$lib/utils/errors";
 import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
 import safeRegex from "safe-regex2";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
-import { globToRegex, isEntryEmpty, matchesFilters } from "./organizer-filters";
+import { globToRegex, isEntryEmpty, isOrphan, matchesFilters, normalizeOrphanBase } from "./organizer-filters";
 import { computeNewName } from "./organizer-rename";
 import type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State } from "./organizer-types";
 
@@ -11,6 +11,11 @@ export type { EntryStatus } from "./organizer-types";
 export type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State };
 
 const DEBOUNCE_MS = 300;
+
+function lowerSplit(name: string): [base: string, ext: string] {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? [name.slice(0, dot).toLowerCase(), name.slice(dot + 1).toLowerCase()] : [name.toLowerCase(), ""];
+}
 
 export class Organizer {
   // --- Path ---
@@ -94,6 +99,7 @@ export class Organizer {
     excludeSystemFiles: this.filters.excludeSystemFiles,
     recursive: this.scanConfig.recursive,
     isEmpty: this.filters.isEmpty,
+    orphanCheck: this.filters.orphanCheck?.partnerExtensions.join("\0") ?? "",
   });
 
   readonly cleanup: () => void;
@@ -367,6 +373,21 @@ export class Organizer {
       return false;
     }
 
+    let siblingMap: SvelteMap<string, SvelteSet<string>> | undefined;
+    if (this.filters.orphanCheck) {
+      siblingMap = new SvelteMap();
+      for (const e of realEntries) {
+        if (!e.name || !e.isFile) continue;
+        const [base, ext] = lowerSplit(e.name);
+        let exts = siblingMap.get(base);
+        if (!exts) {
+          exts = new SvelteSet<string>();
+          siblingMap.set(base, exts);
+        }
+        exts.add(ext);
+      }
+    }
+
     let allWillBeDeleted = true;
 
     for (const entry of realEntries) {
@@ -408,8 +429,17 @@ export class Organizer {
       } else {
         if (matchesFilters(entryRelPath, true, this.filters, this._compiledPatterns)) {
           if (!this.filters.isEmpty || (await isEntryEmpty(`${this.path}/${entryRelPath}`, true).catch(() => false))) {
-            result.push({ path: entryRelPath, isFile: true, ignored: false });
-            entryWillBeDeleted = true;
+            let passesOrphanCheck = true;
+            if (siblingMap) {
+              const [base] = lowerSplit(entry.name ?? "");
+              // _O/_o prefix (IMG_O1234) maps to the main file base (IMG_1234); only non-_O partners count
+              const normSiblings = siblingMap.get(normalizeOrphanBase(base));
+              passesOrphanCheck = !normSiblings || isOrphan(normSiblings, this.filters.orphanCheck!.partnerExtensions);
+            }
+            if (passesOrphanCheck) {
+              result.push({ path: entryRelPath, isFile: true, ignored: false });
+              entryWillBeDeleted = true;
+            }
           }
         }
       }
