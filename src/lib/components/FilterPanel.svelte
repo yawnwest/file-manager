@@ -15,8 +15,11 @@
       <input type="checkbox" bind:checked={filters.excludeFiles} {disabled} /> Exclude Files
     </label>
     <label>
-      <input type="checkbox" bind:checked={filters.excludeFolders} disabled={disabled || lockedExcludeFolders} /> Exclude
-      Folders
+      <input
+        type="checkbox"
+        bind:checked={filters.excludeFolders}
+        disabled={disabled || lockedExcludeFolders || !!filters.orphanCheck}
+      /> Exclude Folders
     </label>
     <label>
       <input type="checkbox" bind:checked={filters.excludeSystemFiles} {disabled} /> Exclude system files
@@ -30,6 +33,7 @@
         checked={!!filters.orphanCheck}
         onchange={(e) => {
           filters.orphanCheck = e.currentTarget.checked ? { partnerExtensions: [] } : undefined;
+          if (e.currentTarget.checked) filters.excludeFolders = true;
         }}
         {disabled}
       /> Only orphans

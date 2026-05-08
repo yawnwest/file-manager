@@ -11,8 +11,10 @@ fn run_mdfind(dir: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
+#[cfg(target_os = "macos")]
 const TAGGED_FILES_NAME: &str = "tagged-files.txt";
 
+#[cfg(target_os = "macos")]
 fn group_tagged_by_dir(stdout: &str) -> std::collections::HashMap<String, Vec<String>> {
     use std::collections::HashMap;
     let mut by_dir: HashMap<String, Vec<String>> = HashMap::new();
@@ -48,8 +50,9 @@ async fn write_tagged_files(dir: String, recursive: bool) -> Result<serde_json::
 
         let mut written = 0usize;
         let mut unchanged = 0usize;
+        let mut deleted = 0usize;
 
-        for (dir_path, mut names) in by_dir {
+        for (dir_path, names) in &mut by_dir {
             names.sort();
             let new_content = names.join("\n") + "\n";
             let txt_path = std::path::Path::new(&dir_path).join(TAGGED_FILES_NAME);
@@ -62,7 +65,43 @@ async fn write_tagged_files(dir: String, recursive: bool) -> Result<serde_json::
             }
         }
 
-        Ok(serde_json::json!({ "written": written, "unchanged": unchanged }))
+        // Delete tagged-files.txt in directories that no longer have any tagged files
+        let root = std::path::Path::new(dir.trim_end_matches('/'));
+        let candidates: Vec<std::path::PathBuf> = if recursive {
+            let mut paths = vec![];
+            fn find_txt(dir: &std::path::Path, name: &str, out: &mut Vec<std::path::PathBuf>) {
+                let Ok(entries) = std::fs::read_dir(dir) else {
+                    return;
+                };
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        find_txt(&path, name, out);
+                    } else if path.file_name().map(|n| n == name).unwrap_or(false) {
+                        out.push(path);
+                    }
+                }
+            }
+            find_txt(root, TAGGED_FILES_NAME, &mut paths);
+            paths
+        } else {
+            let p = root.join(TAGGED_FILES_NAME);
+            if p.exists() {
+                vec![p]
+            } else {
+                vec![]
+            }
+        };
+
+        for txt_path in candidates {
+            let parent = txt_path.parent().unwrap().to_string_lossy().into_owned();
+            if !by_dir.contains_key(&parent) {
+                std::fs::remove_file(&txt_path).map_err(|e| e.to_string())?;
+                deleted += 1;
+            }
+        }
+
+        Ok(serde_json::json!({ "written": written, "unchanged": unchanged, "deleted": deleted }))
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -384,6 +423,7 @@ mod tests {
 
     // --- group_tagged_by_dir ---
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn group_tagged_groups_by_parent() {
         let stdout = "/photos/img.raf\n/photos/img.jpg\n/videos/clip.mov\n";
@@ -394,6 +434,7 @@ mod tests {
         assert_eq!(result["/videos"], vec!["clip.mov"]);
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn group_tagged_excludes_tagged_files_txt() {
         let stdout = "/photos/img.raf\n/photos/tagged-files.txt\n/photos/img.jpg\n";
@@ -403,11 +444,13 @@ mod tests {
         assert_eq!(photos.len(), 2);
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn group_tagged_empty_input() {
         assert!(group_tagged_by_dir("").is_empty());
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn group_tagged_single_file() {
         let stdout = "/photos/img.raf\n";
@@ -415,6 +458,7 @@ mod tests {
         assert_eq!(result["/photos"], vec!["img.raf"]);
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn group_tagged_multiple_dirs() {
         let stdout = "/a/x.raf\n/b/y.xmp\n/a/z.aae\n";
@@ -425,6 +469,7 @@ mod tests {
         assert_eq!(a, vec!["x.raf", "z.aae"]);
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn write_tagged_non_recursive_only_root() {
         let stdout = "/photos/img.raf\n/photos/2024/img.jpg\n";
@@ -435,6 +480,7 @@ mod tests {
         assert!(!by_dir.contains_key("/photos/2024"));
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn group_tagged_ignores_blank_lines() {
         let stdout = "/photos/img.raf\n\n/photos/img.jpg\n";
@@ -443,6 +489,7 @@ mod tests {
         assert_eq!(result["/photos"].len(), 2);
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn write_tagged_recursive_keeps_subdirs() {
         let stdout = "/photos/img.raf\n/photos/2024/img.jpg\n";
@@ -452,6 +499,7 @@ mod tests {
         assert!(by_dir.contains_key("/photos/2024"));
     }
 
+    #[cfg(target_os = "macos")]
     #[test]
     fn write_tagged_content_is_sorted_with_trailing_newline() {
         let stdout = "/photos/c.raf\n/photos/a.jpg\n/photos/b.xmp\n";

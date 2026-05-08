@@ -227,6 +227,19 @@ describe("matchesFilters", () => {
       expect(matchesFilters("src", false, filters({ excludeFolders: true }), compiled([], []))).toBe(false));
     it("file passes", () =>
       expect(matchesFilters("foo.ts", true, filters({ excludeFolders: true }), compiled([], []))).toBe(true));
+    it("folder passes when only orphanCheck is set (excludeFolders must be set explicitly)", () =>
+      expect(
+        matchesFilters("src", false, filters({ orphanCheck: { partnerExtensions: ["jpg"] } }), compiled([], [])),
+      ).toBe(true));
+    it("folder fails when orphanCheck AND excludeFolders are set", () =>
+      expect(
+        matchesFilters(
+          "src",
+          false,
+          filters({ orphanCheck: { partnerExtensions: ["jpg"] }, excludeFolders: true }),
+          compiled([], []),
+        ),
+      ).toBe(false));
   });
 
   describe("case sensitive patterns", () => {
