@@ -199,6 +199,7 @@ fn kill_pid(pid: u32) {
 }
 
 async fn unique_output_path(output_dir: &str, filename: &str) -> String {
+    let output_dir_path = Path::new(output_dir);
     let path = Path::new(filename);
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();
     let ext = path
@@ -206,16 +207,16 @@ async fn unique_output_path(output_dir: &str, filename: &str) -> String {
         .map(|e| format!(".{}", e.to_string_lossy()))
         .unwrap_or_default();
 
-    let candidate = format!("{}/{}", output_dir, filename);
+    let candidate = output_dir_path.join(filename);
     if !tokio::fs::try_exists(&candidate).await.unwrap_or(false) {
-        return candidate;
+        return candidate.to_string_lossy().into_owned();
     }
 
     let mut counter = 1u32;
     loop {
-        let candidate = format!("{}/{} ({}){}", output_dir, stem, counter, ext);
+        let candidate = output_dir_path.join(format!("{} ({}){}", stem, counter, ext));
         if !tokio::fs::try_exists(&candidate).await.unwrap_or(false) {
-            return candidate;
+            return candidate.to_string_lossy().into_owned();
         }
         counter += 1;
     }
