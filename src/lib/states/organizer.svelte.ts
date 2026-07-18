@@ -1,10 +1,11 @@
-import { SYSTEM_FILES } from "$lib/constants";
+import { isVideoPath, SYSTEM_FILES } from "$lib/constants";
 import { errMsg } from "$lib/utils/errors";
 import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
 import safeRegex from "safe-regex2";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
 import { globToRegex, isEntryEmpty, isOrphan, matchesFilters, normalizeOrphanBase } from "./organizer-filters";
-import { computeNewName } from "./organizer-rename";
+import { computeNewName, formatDuration } from "./organizer-rename";
 import type { Entry, FilterConfig, MoveConfig, RenameConfig, ScanConfig, State } from "./organizer-types";
 
 export type { EntryStatus } from "./organizer-types";
@@ -68,12 +69,20 @@ export class Organizer {
 
   // --- Entries ---
   private _entries: Entry[] = $state([]);
+  private _durationCache = $state(new SvelteMap<string, string>());
+  private _durationLoading = $state(0);
+  private _durationRequests = new SvelteMap<string, Promise<string>>();
+  private _durationVersion = $state(0);
   readonly entryCount = $derived(this._entries.length);
   readonly activeCount = $derived(this._entries.filter((e) => !e.ignored).length);
+  readonly durationLoading = $derived(this._durationLoading > 0);
+  readonly durationVersion = $derived(this._durationVersion);
   readonly renameCount = $derived(
-    this._entries.filter(
-      (e) => !e.ignored && computeNewName(e, this._renameRegex, this.renameConfig.renamePattern) !== null,
-    ).length,
+    this._entries.filter((e) => {
+      if (e.ignored) return false;
+      const duration = this._durationCache.get(e.path) ?? "";
+      return computeNewName(e, this._renameRegex, this.renameConfig.renamePattern, duration) !== null;
+    }).length,
   );
 
   // --- Scan progress ---
@@ -103,6 +112,63 @@ export class Organizer {
   });
 
   readonly cleanup: () => void;
+
+  get durationCache() {
+    return this._durationCache;
+  }
+
+  private _isVideoEntry(entry: Entry): boolean {
+    return entry.isFile && isVideoPath(entry.path);
+  }
+
+  private async _getVideoDuration(entry: Entry): Promise<string> {
+    const existing = this._durationCache.get(entry.path);
+    if (existing !== undefined) return existing;
+    if (!this._isVideoEntry(entry)) return "";
+
+    if (this._durationRequests.has(entry.path)) {
+      return this._durationRequests.get(entry.path)!;
+    }
+
+    const promise = (async () => {
+      this._durationLoading += 1;
+      try {
+        const seconds = await invoke<number>("get_video_duration", { path: `${this.path}/${entry.path}` });
+        const formatted = formatDuration(seconds);
+        this._durationCache.set(entry.path, formatted);
+        this._durationVersion += 1;
+        return formatted;
+      } catch {
+        this._durationCache.set(entry.path, "");
+        this._durationVersion += 1;
+        return "";
+      } finally {
+        this._durationLoading = Math.max(0, this._durationLoading - 1);
+        this._durationRequests.delete(entry.path);
+      }
+    })();
+
+    this._durationRequests.set(entry.path, promise);
+    return promise;
+  }
+
+  previewName(entry: Entry, durationHint?: string): string | null {
+    if (!this._renameRegex) return null;
+    const durationPattern = this.renameConfig.renamePattern.includes("$<length>");
+    if (durationPattern && !this._isVideoEntry(entry)) return null;
+
+    let duration = durationHint ?? "";
+    if (durationPattern) {
+      if (!duration && this._durationCache.has(entry.path)) {
+        duration = this._durationCache.get(entry.path) ?? "";
+      }
+    }
+    return computeNewName(entry, this._renameRegex, this.renameConfig.renamePattern, duration);
+  }
+
+  async ensureDuration(entry: Entry): Promise<string> {
+    return this._getVideoDuration(entry);
+  }
 
   // --- Getters ---
 
@@ -146,6 +212,12 @@ export class Organizer {
         void this.moveConfig.targetPath;
         this._validateMoveTarget();
       });
+      $effect(() => {
+        void this._entries;
+        if (this.renameConfig.renamePattern.includes("$<length>")) {
+          void this._preloadDurations();
+        }
+      });
     });
   }
 
@@ -187,13 +259,29 @@ export class Organizer {
   }
 
   async renameAll() {
-    if (this.isExecuting) return;
+    if (this.isExecuting || this.durationLoading) return;
     this._state = "renaming";
     try {
+      const needsDuration = this.renameConfig.renamePattern.includes("$<length>");
+      const durationByPath = new SvelteMap<string, string>();
+      if (needsDuration) {
+        await Promise.all(
+          this._entries.map(async (entry) => {
+            if (entry.ignored) return;
+            if (!this._isVideoEntry(entry)) return;
+            const duration = await this._getVideoDuration(entry);
+            if (duration) {
+              durationByPath.set(entry.path, duration);
+            }
+          }),
+        );
+      }
+
       const newPaths = new SvelteMap<Entry, string>();
       for (const entry of this._entries) {
         if (entry.ignored) continue;
-        const newName = computeNewName(entry, this._renameRegex, this.renameConfig.renamePattern);
+        const duration = durationByPath.get(entry.path) ?? "";
+        const newName = computeNewName(entry, this._renameRegex, this.renameConfig.renamePattern, duration);
         if (newName === null) continue;
         const dir = entry.path.includes("/") ? entry.path.slice(0, entry.path.lastIndexOf("/") + 1) : "";
         const newFullPath = `${this.path}/${dir}${newName}`;
@@ -324,8 +412,19 @@ export class Organizer {
     this.debounceTimer = setTimeout(() => void this._runScan(currentId), DEBOUNCE_MS);
   }
 
+  private async _preloadDurations() {
+    if (!this.path) return;
+    if (!this.renameConfig.renamePattern.includes("$<length>")) return;
+    await Promise.all(
+      this._entries
+        .filter((entry) => !entry.ignored && this._isVideoEntry(entry))
+        .map((entry) => this._getVideoDuration(entry)),
+    );
+  }
+
   private async _runScan(currentId: number) {
     this._state = "scanning";
+    this._durationCache = new SvelteMap();
 
     try {
       const info = await stat(this.path);

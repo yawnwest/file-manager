@@ -128,6 +128,7 @@ pub fn run() {
             watcher::check_ffmpeg,
             watcher::process_video,
             watcher::cancel_video,
+            watcher::get_video_duration,
             write_tagged_files
         ])
         .build(tauri::generate_context!())

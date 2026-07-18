@@ -47,6 +47,20 @@
     const pos = start + snippet.length;
     requestAnimationFrame(() => input.setSelectionRange(pos, pos));
   }
+
+  function insertSnippet(input: HTMLInputElement | undefined, target: "match" | "rename", snippet: string) {
+    if (!input) return;
+    const get =
+      target === "match" ? () => organizer.renameConfig.matchPattern : () => organizer.renameConfig.renamePattern;
+    const set =
+      target === "match"
+        ? (value: string) => (organizer.renameConfig.matchPattern = value)
+        : (value: string) => (organizer.renameConfig.renamePattern = value);
+    insertAt(input, get, set, snippet);
+  }
+
+  const matchPatternSnippets = [".*", "(?<name>.*)", "\\[\\[\\d\\d-\\d\\d-\\d\\d\\]\\]", "\\d"];
+  const renamePatternSnippets = ["$<filename>", "$<length>"];
 </script>
 
 <section class="action-config">
@@ -109,18 +123,10 @@
           />
         </div>
         <div class="snippets">
-          {#each [".*", "(?<name>.*)"] as snippet (snippet)}
-            <button
-              class="snippet"
-              {disabled}
-              onclick={() =>
-                insertAt(
-                  matchPatternInput!,
-                  () => organizer.renameConfig.matchPattern,
-                  (v) => (organizer.renameConfig.matchPattern = v),
-                  snippet,
-                )}>{snippet}</button
-            >
+          {#each matchPatternSnippets as snippet (snippet)}
+            <button class="snippet" {disabled} onclick={() => insertSnippet(matchPatternInput, "match", snippet)}>
+              {snippet === "\\[\\[\\d\\d-\\d\\d-\\d\\d\\]\\]" ? "[[\\d\\d-\\d\\d-\\d\\d]]" : snippet}
+            </button>
           {/each}
         </div>
       </div>
@@ -129,24 +135,18 @@
           <label for="rename-pattern">Rename to</label>
           <input
             id="rename-pattern"
-            placeholder="$&lt;number&gt;.new name"
+            placeholder="$<number>.new name"
             {disabled}
             bind:this={renamePatternInput}
             bind:value={organizer.renameConfig.renamePattern}
           />
         </div>
         <div class="snippets">
-          <button
-            class="snippet"
-            {disabled}
-            onclick={() =>
-              insertAt(
-                renamePatternInput!,
-                () => organizer.renameConfig.renamePattern,
-                (v) => (organizer.renameConfig.renamePattern = v),
-                "$<filename>",
-              )}>$&lt;filename&gt;</button
-          >
+          {#each renamePatternSnippets as snippet (snippet)}
+            <button class="snippet" {disabled} onclick={() => insertSnippet(renamePatternInput, "rename", snippet)}>
+              {snippet}
+            </button>
+          {/each}
           {#each matchGroups as group (group)}
             <button
               class="snippet"
@@ -157,8 +157,10 @@
                   () => organizer.renameConfig.renamePattern,
                   (v) => (organizer.renameConfig.renamePattern = v),
                   `$<${group}>`,
-                )}>$&lt;{group}&gt;</button
+                )}
             >
+              {`$<${group}>`}
+            </button>
           {/each}
         </div>
       </div>
@@ -167,7 +169,12 @@
       <p class="error">{organizer.renamePatternError}</p>
     {/if}
     <div class="action-execute">
-      <button onclick={onRenameAll} disabled={disabledExecute || organizer.renameCount === 0}> Rename all </button>
+      <button
+        onclick={onRenameAll}
+        disabled={disabledExecute || organizer.renameCount === 0 || organizer.durationLoading}
+      >
+        Rename all
+      </button>
     </div>
   {/if}
 

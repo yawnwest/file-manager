@@ -1,3 +1,4 @@
+import { isVideoPath } from "$lib/constants";
 import type { Entry } from "./organizer-types";
 
 /**
@@ -13,7 +14,21 @@ import type { Entry } from "./organizer-types";
  * // renamePattern: "$<month>_$<year>"
  * applyRename("2024-03.txt", true, regex, "$<month>_$<year>") // "03_2024.txt"
  */
-export function applyRename(name: string, isFile: boolean, regex: RegExp, renamePattern: string): string | null {
+export function formatDuration(seconds: number): string {
+  const rounded = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  const secs = rounded % 60;
+  return [hours, minutes, secs].map((value) => String(value).padStart(2, "0")).join("-");
+}
+
+export function applyRename(
+  name: string,
+  isFile: boolean,
+  regex: RegExp,
+  renamePattern: string,
+  duration: string = "",
+): string | null {
   const match = regex.exec(name);
   if (!match) return null;
 
@@ -23,12 +38,22 @@ export function applyRename(name: string, isFile: boolean, regex: RegExp, rename
 
   const groups = match.groups ?? {};
   let newStem = renamePattern.replaceAll("$<filename>", base);
+  const requiresLength = renamePattern.includes("$<length>");
+  if (requiresLength) {
+    if (!isFile || !isVideoPath(name)) return null;
+    if (!duration) return null;
+  }
+  newStem = newStem.replaceAll("$<length>", `[[${duration}]]`);
   for (const [key, value] of Object.entries(groups)) {
+    if (key === "length") continue;
     newStem = newStem.replaceAll(`$<${key}>`, value ?? "");
   }
   newStem = newStem.replace(/[/\\]/g, "_").replace(/\0/g, "");
 
   if (isFile) {
+    if (ext && newStem.endsWith(ext)) {
+      return newStem;
+    }
     return newStem + ext;
   }
   return newStem;
@@ -40,9 +65,14 @@ export function applyRename(name: string, isFile: boolean, regex: RegExp, rename
  * Extracts the filename from `entry.path` and delegates to `applyRename`.
  * Returns `null` if `regex` is `null` or the path has no filename component.
  */
-export function computeNewName(entry: Entry, regex: RegExp | null, renamePattern: string): string | null {
+export function computeNewName(
+  entry: Entry,
+  regex: RegExp | null,
+  renamePattern: string,
+  duration: string = "",
+): string | null {
   if (!regex) return null;
   const filename = entry.path.split("/").pop();
   if (!filename) return null;
-  return applyRename(filename, entry.isFile, regex, renamePattern);
+  return applyRename(filename, entry.isFile, regex, renamePattern, duration);
 }
