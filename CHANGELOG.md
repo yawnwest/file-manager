@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-18
+
+### Added
+
+- Video length metadata can now be used in rename patterns for video files, enabling more dynamic naming based on duration.
+- Paste handling now strips surrounding single and double quotes from paths before applying them.
+
+### Changed
+
+- Updated frontend and backend dependencies to newer compatible versions.
+
 ## [0.5.0] - 2026-05-08
 
 ### Added
@@ -75,6 +86,7 @@
 - Auto-updater: checks for new releases on launch and prompts to install
 - Zoom in/out via keyboard shortcuts
 
+[0.6.0]: https://github.com/yawnwest/file-manager/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/yawnwest/file-manager/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/yawnwest/file-manager/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/yawnwest/file-manager/compare/v0.4.0...v0.4.1
