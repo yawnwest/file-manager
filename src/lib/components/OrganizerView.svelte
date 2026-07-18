@@ -3,6 +3,7 @@
   import { confirm, open } from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
   import { onDestroy } from "svelte";
+  import { cleanPaste } from "$lib/utils/paste-handlers";
   import ActionPanel from "./ActionPanel.svelte";
   import EntriesTable from "./EntriesTable.svelte";
   import FilterPanel from "./FilterPanel.svelte";
@@ -93,6 +94,7 @@
         class:invalid={!organizer.pathIsValid}
         aria-invalid={!organizer.pathIsValid || undefined}
         disabled={organizer.isExecuting}
+        use:cleanPaste
       />
       <button onclick={openFolder} disabled={organizer.isExecuting}>Open …</button>
       <button

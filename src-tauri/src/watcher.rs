@@ -39,26 +39,47 @@ fn ffprobe_command() -> Command {
     )
 }
 
-async fn detect_video_codec(input: &str) -> Result<String, String> {
+async fn ffprobe_output(args: &[&str], input: &str) -> Result<String, String> {
     let output = ffprobe_command()
-        .args([
-            "-v",
-            "error",
+        .args(["-v", "error"])
+        .args(args)
+        .arg(input)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let last_line = stderr.lines().last().unwrap_or("").trim();
+        return Err(if last_line.is_empty() {
+            format!(
+                "ffprobe exited with code {}",
+                output.status.code().unwrap_or(-1)
+            )
+        } else {
+            last_line.to_string()
+        });
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+async fn detect_video_codec(input: &str) -> Result<String, String> {
+    ffprobe_output(
+        &[
             "-select_streams",
             "v:0",
             "-show_entries",
             "stream=codec_name",
             "-of",
             "default=noprint_wrappers=1:nokey=1",
-            input,
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output()
-        .await
-        .map_err(|e| format!("Failed to run ffprobe: {}", e))?;
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        ],
+        input,
+    )
+    .await
 }
 
 fn rotate_codec_args(codec: &str) -> Vec<&'static str> {
@@ -138,6 +159,24 @@ pub async fn cancel_video(pids: State<'_, ActivePids>) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub async fn get_video_duration(path: String) -> Result<f64, String> {
+    let stdout = ffprobe_output(
+        &[
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+        ],
+        &path,
+    )
+    .await?;
+
+    stdout
+        .parse::<f64>()
+        .map_err(|e| format!("Could not parse duration from ffprobe output: {}", e))
+}
+
 pub fn kill_all(pids: &ActivePids) {
     let pids = pids.lock().unwrap().clone();
     for pid in pids {
@@ -160,6 +199,7 @@ fn kill_pid(pid: u32) {
 }
 
 async fn unique_output_path(output_dir: &str, filename: &str) -> String {
+    let output_dir_path = Path::new(output_dir);
     let path = Path::new(filename);
     let stem = path.file_stem().unwrap_or_default().to_string_lossy();
     let ext = path
@@ -167,16 +207,16 @@ async fn unique_output_path(output_dir: &str, filename: &str) -> String {
         .map(|e| format!(".{}", e.to_string_lossy()))
         .unwrap_or_default();
 
-    let candidate = format!("{}/{}", output_dir, filename);
+    let candidate = output_dir_path.join(filename);
     if !tokio::fs::try_exists(&candidate).await.unwrap_or(false) {
-        return candidate;
+        return candidate.to_string_lossy().into_owned();
     }
 
     let mut counter = 1u32;
     loop {
-        let candidate = format!("{}/{} ({}){}", output_dir, stem, counter, ext);
+        let candidate = output_dir_path.join(format!("{} ({}){}", stem, counter, ext));
         if !tokio::fs::try_exists(&candidate).await.unwrap_or(false) {
-            return candidate;
+            return candidate.to_string_lossy().into_owned();
         }
         counter += 1;
     }
@@ -245,4 +285,75 @@ pub async fn process_video(
     }
 
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rotate_codec_args_maps_known_codecs() {
+        assert_eq!(
+            rotate_codec_args("h264"),
+            vec!["-c:v", "libx264", "-crf", "18"]
+        );
+        assert_eq!(
+            rotate_codec_args("hevc"),
+            vec!["-c:v", "libx265", "-crf", "18"]
+        );
+        assert_eq!(
+            rotate_codec_args("vp9"),
+            vec!["-c:v", "libvpx-vp9", "-crf", "18", "-b:v", "0"]
+        );
+        assert_eq!(
+            rotate_codec_args("unknown"),
+            vec!["-c:v", "libx264", "-crf", "18"]
+        );
+    }
+
+    #[test]
+    fn ffprobe_output_returns_error_for_missing_file() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let result = runtime.block_on(ffprobe_output(
+            &["-show_entries", "format=duration"],
+            "/tmp/definitely-not-a-real-video-file.mp4",
+        ));
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn unique_output_path_adds_numeric_suffix_when_needed() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let temp_dir = std::env::temp_dir().join(format!(
+            "file-manager-tests-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let existing_file = temp_dir.join("sample.mp4");
+        std::fs::write(&existing_file, b"fake").unwrap();
+
+        let output_path =
+            runtime.block_on(unique_output_path(temp_dir.to_str().unwrap(), "sample.mp4"));
+
+        assert_eq!(
+            output_path,
+            temp_dir.join("sample (1).mp4").to_string_lossy()
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 }

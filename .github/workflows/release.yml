@@ -26,7 +26,7 @@ jobs:
             rust-targets: ""
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
         with:
@@ -55,7 +55,7 @@ jobs:
         run: cargo clippy --locked -- -D warnings && cargo test --locked
         working-directory: src-tauri
 
-      - uses: tauri-apps/tauri-action@action-v0.6.2
+      - uses: tauri-apps/tauri-action@action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

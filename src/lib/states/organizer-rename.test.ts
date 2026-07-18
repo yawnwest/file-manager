@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
+import { isVideoPath } from "$lib/constants";
 import { applyRename, computeNewName } from "./organizer-rename";
 import type { Entry } from "./organizer-types";
 
 function entry(path: string, isFile = true): Entry {
   return { path, isFile, ignored: false };
 }
+
+describe("isVideoPath", () => {
+  it("recognizes common video extensions", () => {
+    expect(isVideoPath("clip.mov")).toBe(true);
+    expect(isVideoPath("movie.mp4")).toBe(true);
+  });
+
+  it("rejects non-video files", () => {
+    expect(isVideoPath("notes.txt")).toBe(false);
+    expect(isVideoPath("README")).toBe(false);
+  });
+});
 
 describe("applyRename", () => {
   it("replaces named capture groups in the pattern", () => {
@@ -32,10 +45,10 @@ describe("applyRename", () => {
     expect(applyRename(".gitignore", true, regex, "new_$<name>")).toBe("new_.gitignore");
   });
 
-  it("doubles extension if regex captures it (caller must exclude extension from match)", () => {
-    // /(?<name>.+)/ captures ".eslintrc.json" → newStem = "new_.eslintrc.json" → + ".json" appended
+  it("does not append extension when the renamed stem already contains it", () => {
+    // /(?<name>.+)/ captures ".eslintrc.json" → newStem = "new_.eslintrc.json" → extension should not be duplicated
     const regex = /(?<name>.+)/;
-    expect(applyRename(".eslintrc.json", true, regex, "new_$<name>")).toBe("new_.eslintrc.json.json");
+    expect(applyRename(".eslintrc.json", true, regex, "new_$<name>")).toBe("new_.eslintrc.json");
   });
 
   it("correctly renames dotfile with extension when regex excludes the extension", () => {
@@ -77,6 +90,21 @@ describe("applyRename", () => {
     const regex = /(?<n>\d+)/;
     expect(applyRename("report42.txt", true, regex, "$<filename>_$<n>")).toBe("report42_42.txt");
   });
+
+  it("replaces $<length> with [[hh-mm-ss]] in the result", () => {
+    const regex = /(?<stem>.+)\.mov/;
+    expect(applyRename("clip.mov", true, regex, "$<stem>_$<length>", "01-02-03")).toBe("clip_[[01-02-03]].mov");
+  });
+
+  it("does not append extension when the renamed stem already contains it", () => {
+    const regex = /(?<name>.*)/;
+    expect(applyRename("clip 9.mp4", true, regex, "$<name>")).toBe("clip 9.mp4");
+  });
+
+  it("returns null for non-video files when $<length> is used", () => {
+    const regex = /(?<stem>.+)\.txt/;
+    expect(applyRename("doc.txt", true, regex, "$<stem>_$<length>", "01-02-03")).toBeNull();
+  });
 });
 
 describe("computeNewName", () => {
@@ -103,5 +131,12 @@ describe("computeNewName", () => {
   it("returns null when filename does not match regex", () => {
     const regex = /(?<year>\d{4})/;
     expect(computeNewName(entry("/a/b/readme.md"), regex, "$<year>")).toBeNull();
+  });
+
+  it("injects duration for video entries when available", () => {
+    const regex = /(?<stem>.+)\.mov/;
+    expect(computeNewName(entry("/a/b/clip.mov"), regex, "$<stem>_$<length>", "01-02-03")).toBe(
+      "clip_[[01-02-03]].mov",
+    );
   });
 });

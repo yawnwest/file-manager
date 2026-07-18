@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { computeNewName } from "$lib/states/organizer-rename";
+  import { isVideoPath } from "$lib/constants";
   import type { Organizer } from "$lib/states/organizer.svelte";
   import { SvelteSet } from "svelte/reactivity";
 
@@ -34,6 +34,7 @@
 
   const virtualState = $derived.by(() => {
     const entries = organizer.entries;
+    const version = organizer.durationVersion;
     const total = entries.length;
     const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
     const end = Math.min(total, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + OVERSCAN);
@@ -42,10 +43,23 @@
       offsetTop: start * ROW_HEIGHT,
       offsetBottom: (total - end) * ROW_HEIGHT,
       visible: entries.slice(start, end),
+      version,
     };
   });
 
   const colSpan = $derived(action === "rename" ? 4 : 3);
+
+  $effect(() => {
+    if (action !== "rename") return;
+    const visible = virtualState.visible;
+    if (!organizer.renameConfig.renamePattern.includes("$<length>")) return;
+    for (const entry of visible) {
+      if (!entry.isFile) continue;
+      if (!organizer.durationCache.has(entry.path)) {
+        void organizer.ensureDuration(entry);
+      }
+    }
+  });
 
   let expanded = new SvelteSet<string>();
 
@@ -79,12 +93,11 @@
         {#if virtualState.offsetTop > 0}
           <tr class="spacer" style="height: {virtualState.offsetTop}px"><td colspan={colSpan}></td></tr>
         {/if}
-        {#each virtualState.visible as entry, i (entry.path)}
-          {@const newName =
-            action === "rename"
-              ? computeNewName(entry, organizer.renameRegex, organizer.renameConfig.renamePattern)
-              : null}
+        {#each virtualState.visible as entry, i (entry.path + organizer.durationVersion)}
+          {@const cachedDuration = action === "rename" ? organizer.durationCache.get(entry.path) : undefined}
+          {@const newName = action === "rename" ? organizer.previewName(entry, cachedDuration) : null}
           {@const isExpanded = expanded.has(entry.path)}
+          {@const isVideo = isVideoPath(entry.path)}
           <tr class:ignored={entry.ignored} class:even={(virtualState.start + i) % 2 === 1}>
             <td class="col-ignore"><input type="checkbox" bind:checked={entry.ignored} /></td>
             <td
@@ -108,7 +121,19 @@
                 {#if newName !== null}
                   <span class="new-name">{newName}</span>
                 {:else}
-                  <span class="no-match">Does not match pattern</span>
+                  {#if organizer.renameConfig.renamePattern.includes("$<length>")}
+                    {#if !entry.isFile}
+                      <span class="no-match">Length placeholder only available for video files</span>
+                    {:else if !isVideo}
+                      <span class="no-match">Length placeholder only available for video files</span>
+                    {:else if !organizer.durationCache.has(entry.path)}
+                      <span class="no-match">Loading duration…</span>
+                    {:else}
+                      <span class="no-match">Duration unavailable</span>
+                    {/if}
+                  {:else}
+                    <span class="no-match">Does not match pattern</span>
+                  {/if}
                 {/if}
               </td>
             {/if}

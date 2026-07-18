@@ -2,6 +2,7 @@
   import { Watcher, SUBFOLDERS } from "$lib/states/watcher.svelte";
   import { open } from "@tauri-apps/plugin-dialog";
   import { onDestroy } from "svelte";
+  import { cleanPaste } from "$lib/utils/paste-handlers";
 
   const watcher = new Watcher();
   onDestroy(watcher.cleanup);
@@ -30,6 +31,7 @@
         bind:value={watcher.path}
         class:invalid={!watcher.pathIsValid}
         aria-invalid={!watcher.pathIsValid || undefined}
+        use:cleanPaste
       />
       <button onclick={openFolder}>Open …</button>
       <span class="status-badge" class:active={watcher.watching}>
