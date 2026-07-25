@@ -130,9 +130,15 @@ describe("Organizer", () => {
       mockReadDir.mockResolvedValue([file("foo.txt"), folder("bar")]);
       await triggerScan();
       expect(organizer.entries).toEqual([
-        { path: "foo.txt", isFile: true, ignored: false },
         { path: "bar", isFile: false, ignored: false },
+        { path: "foo.txt", isFile: true, ignored: false },
       ]);
+    });
+
+    it("sorts entries by path and name", async () => {
+      mockReadDir.mockResolvedValue([file("zeta.txt"), folder("alpha"), file("beta.txt"), file("alpha.txt")]);
+      await triggerScan();
+      expect(organizer.entries.map((entry) => entry.path)).toEqual(["alpha", "alpha.txt", "beta.txt", "zeta.txt"]);
     });
 
     it("state is idle after scan completes", async () => {

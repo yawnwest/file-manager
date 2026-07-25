@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Sort files alphabetically.
+
 ## [0.6.0] - 2026-07-18
 
 ### Added

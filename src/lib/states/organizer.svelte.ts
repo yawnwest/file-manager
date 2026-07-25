@@ -377,6 +377,14 @@ export class Organizer {
 
   // --- Private methods ---
 
+  private _compareEntryPaths(a: string, b: string): number {
+    return a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+  }
+
+  private _sortEntries(entries: Entry[]): Entry[] {
+    return [...entries].sort((a, b) => this._compareEntryPaths(a.path, b.path));
+  }
+
   private _validateMoveTarget() {
     if (this.moveDebounceTimer) clearTimeout(this.moveDebounceTimer);
     this.moveDebounceTimer = setTimeout(async () => {
@@ -440,7 +448,7 @@ export class Organizer {
       await this._scanDir("", currentId, entries);
 
       if (currentId !== this.requestId) return;
-      this._entries = entries;
+      this._entries = this._sortEntries(entries);
       this._pathError = "";
     } catch (e) {
       if (currentId !== this.requestId) return;
@@ -547,7 +555,7 @@ export class Organizer {
 
       if (++this._scanCount % 200 === 0) {
         this._scanned = rootResult.length;
-        this._entries = [...rootResult];
+        this._entries = this._sortEntries(rootResult);
         await new Promise((resolve) => setTimeout(resolve, 0));
         if (requestId !== this.requestId) return false;
       }
