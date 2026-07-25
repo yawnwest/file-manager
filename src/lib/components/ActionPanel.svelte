@@ -59,8 +59,10 @@
     insertAt(input, get, set, snippet);
   }
 
-  const matchPatternSnippets = [".*", "(?<name>.*)", "\\[\\[\\d\\d-\\d\\d-\\d\\d\\]\\]", "\\d"];
+  import { matchPatternSnippets as matchPatternSnippetDefinitions } from "./action-panel-snippets";
+
   const renamePatternSnippets = ["$<filename>", "$<length>"];
+  const matchPatternSnippets = matchPatternSnippetDefinitions;
 </script>
 
 <section class="action-config">
@@ -123,9 +125,9 @@
           />
         </div>
         <div class="snippets">
-          {#each matchPatternSnippets as snippet (snippet)}
-            <button class="snippet" {disabled} onclick={() => insertSnippet(matchPatternInput, "match", snippet)}>
-              {snippet === "\\[\\[\\d\\d-\\d\\d-\\d\\d\\]\\]" ? "[[\\d\\d-\\d\\d-\\d\\d]]" : snippet}
+          {#each matchPatternSnippets as snippet (snippet.label)}
+            <button class="snippet" {disabled} onclick={() => insertSnippet(matchPatternInput, "match", snippet.value)}>
+              {snippet.label}
             </button>
           {/each}
         </div>
