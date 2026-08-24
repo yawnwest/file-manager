@@ -5,6 +5,7 @@
 ### Added
 
 - Sort files alphabetically.
+- Delete directories and files to trash instead of deleting it permanently.
 
 ## [0.6.0] - 2026-07-18
 

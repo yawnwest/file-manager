@@ -1,6 +1,6 @@
 import { isVideoPath, SYSTEM_FILES } from "$lib/constants";
 import { errMsg } from "$lib/utils/errors";
-import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
+import { exists, readDir, rename, stat } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import safeRegex from "safe-regex2";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
@@ -235,6 +235,7 @@ export class Organizer {
     if (this.isExecuting) return;
     this._state = "deleting";
     try {
+      const eligibleEntries: Entry[] = [];
       for (const entry of [...this._entries].reverse()) {
         if (entry.ignored) continue;
         const fullPath = `${this.path}/${entry.path}`;
@@ -247,11 +248,29 @@ export class Organizer {
             entry.status = { ok: false, message: "Not empty" };
             continue;
           }
-          await remove(fullPath, { recursive: true });
-          entry.status = { ok: true };
+          eligibleEntries.push(entry);
         } catch (e) {
           entry.status = { ok: false, message: errMsg(e) };
         }
+      }
+
+      const paths = eligibleEntries
+        .filter(
+          (entry, index, entries) =>
+            !entries.some((other, otherIndex) => {
+              if (index === otherIndex) return false;
+              return entry.path.startsWith(`${other.path}/`);
+            }),
+        )
+        .map((entry) => `${this.path}/${entry.path}`);
+      if (paths.length === 0) return;
+
+      try {
+        await invoke("move_to_trash", { paths });
+        for (const entry of eligibleEntries) entry.status = { ok: true };
+      } catch (e) {
+        const message = errMsg(e);
+        for (const entry of eligibleEntries) entry.status = { ok: false, message };
       }
     } finally {
       this._state = "done";

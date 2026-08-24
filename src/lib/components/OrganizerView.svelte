@@ -25,13 +25,10 @@
   }
 
   async function deleteAll() {
-    const ok = await confirm(
-      `Delete ${organizer.activeCount} of ${organizer.entryCount} entries? This cannot be undone.`,
-      {
-        title: "Confirm deletion",
-        kind: "warning",
-      },
-    );
+    const ok = await confirm(`Move ${organizer.activeCount} of ${organizer.entryCount} entries to the Trash?`, {
+      title: "Confirm deletion",
+      kind: "warning",
+    });
     if (ok) await organizer.deleteAll();
   }
 

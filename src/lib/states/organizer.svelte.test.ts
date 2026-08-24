@@ -6,8 +6,11 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   stat: vi.fn(),
   readDir: vi.fn(),
   exists: vi.fn(),
-  remove: vi.fn(),
   rename: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
 }));
 
 vi.mock("./organizer-filters", async (importOriginal) => {
@@ -15,7 +18,8 @@ vi.mock("./organizer-filters", async (importOriginal) => {
   return { ...mod, isEntryEmpty: vi.fn() };
 });
 
-import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
+import { exists, readDir, rename, stat } from "@tauri-apps/plugin-fs";
 import { isEntryEmpty } from "./organizer-filters";
 import { Organizer } from "./organizer.svelte";
 
@@ -23,7 +27,7 @@ const mockStat = vi.mocked(stat);
 const mockReadDir = vi.mocked(readDir);
 const mockIsEntryEmpty = vi.mocked(isEntryEmpty);
 const mockExists = vi.mocked(exists);
-const mockRemove = vi.mocked(remove);
+const mockMoveToTrash = vi.mocked(invoke);
 
 type FakeDirEntry = Awaited<ReturnType<typeof readDir>>[number];
 
@@ -240,14 +244,14 @@ describe("Organizer", () => {
   describe("deleteAll()", () => {
     beforeEach(async () => {
       mockExists.mockResolvedValue(true);
-      mockRemove.mockResolvedValue(undefined);
+      mockMoveToTrash.mockResolvedValue(undefined);
       mockReadDir.mockResolvedValue([file("a.txt"), file("b.txt")]);
       await triggerScan();
     });
 
     it("sets state to deleting during execution, then done", async () => {
       let stateWhileDeleting: string | null = null;
-      mockRemove.mockImplementation(async () => {
+      mockMoveToTrash.mockImplementation(async () => {
         stateWhileDeleting = organizer.state;
       });
       await organizer.deleteAll();
@@ -257,6 +261,10 @@ describe("Organizer", () => {
 
     it("marks each entry ok after successful removal", async () => {
       await organizer.deleteAll();
+      expect(mockMoveToTrash).toHaveBeenCalledTimes(1);
+      expect(mockMoveToTrash).toHaveBeenCalledWith("move_to_trash", {
+        paths: ["/test/b.txt", "/test/a.txt"],
+      });
       expect(organizer.entries.every((e) => e.status?.ok === true)).toBe(true);
     });
 
@@ -271,13 +279,17 @@ describe("Organizer", () => {
       mockExists.mockResolvedValue(false);
       await organizer.deleteAll();
       expect(organizer.entries[0].status).toEqual({ ok: false, message: "Not found" });
-      expect(mockRemove).not.toHaveBeenCalled();
+      expect(mockMoveToTrash).not.toHaveBeenCalled();
     });
 
     it("marks entry with error message when remove throws", async () => {
-      mockRemove.mockRejectedValue(new Error("permission denied"));
+      mockMoveToTrash.mockRejectedValue(new Error("permission denied"));
       await organizer.deleteAll();
-      expect(organizer.entries[0].status).toEqual({ ok: false, message: "permission denied" });
+      expect(mockMoveToTrash).toHaveBeenCalledTimes(1);
+      expect(organizer.entries.every((e) => e.status?.ok === false)).toBe(true);
+      expect(organizer.entries.every((e) => e.status?.ok === false && e.status.message === "permission denied")).toBe(
+        true,
+      );
     });
 
     it("does not start a second execution when already executing", async () => {
@@ -294,27 +306,28 @@ describe("Organizer", () => {
       expect(organizer.state).toBe("deleting");
 
       await organizer.deleteAll(); // returns early
-      expect(mockRemove).not.toHaveBeenCalled();
+      expect(mockMoveToTrash).not.toHaveBeenCalled();
 
       resolveExists(false);
       await first;
       expect(organizer.state).toBe("done");
     });
 
-    it("deletes children before parent (reverse order)", async () => {
+    it("passes a selected parent once for a hierarchy", async () => {
       organizer.scanConfig.recursive = true;
       mockReadDir.mockResolvedValueOnce([folder("sub")]).mockResolvedValueOnce([file("file.txt")]);
       await triggerScan();
 
       const deletedPaths: string[] = [];
-      mockRemove.mockImplementation(async (path) => {
-        deletedPaths.push(path as string);
+      mockMoveToTrash.mockImplementation(async (_command, args) => {
+        deletedPaths.push(...(args as { paths: string[] }).paths);
       });
 
       await organizer.deleteAll();
 
-      expect(deletedPaths[0]).toBe("/test/sub/file.txt");
-      expect(deletedPaths[1]).toBe("/test/sub");
+      expect(deletedPaths).toEqual(["/test/sub"]);
+      expect(mockMoveToTrash).toHaveBeenCalledTimes(1);
+      expect(organizer.entries.every((e) => e.status?.ok === true)).toBe(true);
     });
 
     describe("with isEmpty filter", () => {
@@ -330,7 +343,7 @@ describe("Organizer", () => {
 
         await organizer.deleteAll();
 
-        expect(mockRemove).not.toHaveBeenCalled();
+        expect(mockMoveToTrash).not.toHaveBeenCalled();
         expect(organizer.entries[0].status).toEqual({ ok: false, message: "Not empty" });
       });
 
@@ -341,7 +354,7 @@ describe("Organizer", () => {
 
         await organizer.deleteAll();
 
-        expect(mockRemove).toHaveBeenCalledWith("/test/mydir", { recursive: true });
+        expect(mockMoveToTrash).toHaveBeenCalledWith("move_to_trash", { paths: ["/test/mydir"] });
         expect(organizer.entries[0].status?.ok).toBe(true);
       });
 
@@ -353,7 +366,7 @@ describe("Organizer", () => {
 
         await organizer.deleteAll();
 
-        expect(mockRemove).not.toHaveBeenCalled();
+        expect(mockMoveToTrash).not.toHaveBeenCalled();
         expect(organizer.entries[0].status).toEqual({ ok: false, message: "Not empty" });
       });
 
@@ -364,7 +377,7 @@ describe("Organizer", () => {
 
         await organizer.deleteAll();
 
-        expect(mockRemove).toHaveBeenCalledWith("/test/empty.txt", { recursive: true });
+        expect(mockMoveToTrash).toHaveBeenCalledWith("move_to_trash", { paths: ["/test/empty.txt"] });
         expect(organizer.entries[0].status?.ok).toBe(true);
       });
     });
