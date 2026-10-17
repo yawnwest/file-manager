@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Watcher, SUBFOLDERS } from "$lib/states/watcher.svelte";
+  import { Watcher, SUBFOLDERS } from "../states/watcher.svelte";
   import { open } from "@tauri-apps/plugin-dialog";
   import { onDestroy } from "svelte";
-  import { cleanPaste } from "$lib/utils/paste-handlers";
+  import { cleanPaste } from "../utils/paste-handlers";
 
   const watcher = new Watcher();
   onDestroy(watcher.cleanup);

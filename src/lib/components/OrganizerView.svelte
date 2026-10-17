@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { Organizer } from "$lib/states/organizer.svelte";
+  import { Organizer } from "../states/organizer.svelte";
   import { confirm, open } from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
   import { onDestroy } from "svelte";
-  import { cleanPaste } from "$lib/utils/paste-handlers";
+  import { cleanPaste } from "../utils/paste-handlers";
   import ActionPanel from "./ActionPanel.svelte";
   import EntriesTable from "./EntriesTable.svelte";
   import FilterPanel from "./FilterPanel.svelte";

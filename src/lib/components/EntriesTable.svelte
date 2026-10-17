@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { isVideoPath } from "$lib/constants";
-  import type { Organizer } from "$lib/states/organizer.svelte";
+  import { isVideoPath } from "../constants";
+  import type { Organizer } from "../states/organizer.svelte";
   import { SvelteSet } from "svelte/reactivity";
 
   let {

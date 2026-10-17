@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { parseList } from "$lib/utils/parse-list";
-  import type { FilterConfig } from "$lib/states/organizer-types";
+  import { parseList } from "../utils/parse-list";
+  import type { FilterConfig } from "../states/organizer-types";
 
   let {
     filters = $bindable(),

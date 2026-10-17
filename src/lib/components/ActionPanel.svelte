@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Organizer } from "$lib/states/organizer.svelte";
+  import type { Organizer } from "../states/organizer.svelte";
 
   let {
     action = $bindable<"delete" | "move" | "rename">(),

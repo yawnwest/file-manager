@@ -1,4 +1,4 @@
-import { SYSTEM_FILES } from "$lib/constants";
+import { SYSTEM_FILES } from "../constants";
 import { readDir, stat } from "@tauri-apps/plugin-fs";
 import type { FilterConfig } from "./organizer-types";
 

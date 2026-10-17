@@ -1,4 +1,4 @@
-import { isVideoPath } from "$lib/constants";
+import { isVideoPath } from "../constants";
 import type { Entry } from "./organizer-types";
 
 /**

@@ -1,5 +1,5 @@
-import { isVideoPath, SYSTEM_FILES } from "$lib/constants";
-import { errMsg } from "$lib/utils/errors";
+import { isVideoPath, SYSTEM_FILES } from "../constants";
+import { errMsg } from "../utils/errors";
 import { exists, readDir, rename, stat } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import safeRegex from "safe-regex2";
