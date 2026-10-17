@@ -2,10 +2,16 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-17
+
 ### Added
 
 - Sort files alphabetically.
 - Delete directories and files to trash instead of deleting it permanently.
+
+### Changed
+
+- Updated frontend and backend dependencies to newer compatible versions.
 
 ## [0.6.0] - 2026-07-18
 
@@ -91,6 +97,7 @@
 - Auto-updater: checks for new releases on launch and prompts to install
 - Zoom in/out via keyboard shortcuts
 
+[0.7.0]: https://github.com/yawnwest/file-manager/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/yawnwest/file-manager/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/yawnwest/file-manager/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/yawnwest/file-manager/compare/v0.4.1...v0.4.2
