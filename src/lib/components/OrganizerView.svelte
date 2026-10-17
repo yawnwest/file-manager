@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { Organizer } from "$lib/states/organizer.svelte";
+  import { Organizer } from "../states/organizer.svelte";
   import { confirm, open } from "@tauri-apps/plugin-dialog";
   import { invoke } from "@tauri-apps/api/core";
   import { onDestroy } from "svelte";
-  import { cleanPaste } from "$lib/utils/paste-handlers";
+  import { cleanPaste } from "../utils/paste-handlers";
   import ActionPanel from "./ActionPanel.svelte";
   import EntriesTable from "./EntriesTable.svelte";
   import FilterPanel from "./FilterPanel.svelte";
@@ -25,13 +25,10 @@
   }
 
   async function deleteAll() {
-    const ok = await confirm(
-      `Delete ${organizer.activeCount} of ${organizer.entryCount} entries? This cannot be undone.`,
-      {
-        title: "Confirm deletion",
-        kind: "warning",
-      },
-    );
+    const ok = await confirm(`Move ${organizer.activeCount} of ${organizer.entryCount} entries to the Trash?`, {
+      title: "Confirm deletion",
+      kind: "warning",
+    });
     if (ok) await organizer.deleteAll();
   }
 

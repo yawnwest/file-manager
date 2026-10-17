@@ -1,6 +1,6 @@
-import { isVideoPath, SYSTEM_FILES } from "$lib/constants";
-import { errMsg } from "$lib/utils/errors";
-import { exists, readDir, remove, rename, stat } from "@tauri-apps/plugin-fs";
+import { isVideoPath, SYSTEM_FILES } from "../constants";
+import { errMsg } from "../utils/errors";
+import { exists, readDir, rename, stat } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import safeRegex from "safe-regex2";
 import { SvelteMap, SvelteSet } from "svelte/reactivity";
@@ -235,6 +235,7 @@ export class Organizer {
     if (this.isExecuting) return;
     this._state = "deleting";
     try {
+      const eligibleEntries: Entry[] = [];
       for (const entry of [...this._entries].reverse()) {
         if (entry.ignored) continue;
         const fullPath = `${this.path}/${entry.path}`;
@@ -247,11 +248,29 @@ export class Organizer {
             entry.status = { ok: false, message: "Not empty" };
             continue;
           }
-          await remove(fullPath, { recursive: true });
-          entry.status = { ok: true };
+          eligibleEntries.push(entry);
         } catch (e) {
           entry.status = { ok: false, message: errMsg(e) };
         }
+      }
+
+      const paths = eligibleEntries
+        .filter(
+          (entry, index, entries) =>
+            !entries.some((other, otherIndex) => {
+              if (index === otherIndex) return false;
+              return entry.path.startsWith(`${other.path}/`);
+            }),
+        )
+        .map((entry) => `${this.path}/${entry.path}`);
+      if (paths.length === 0) return;
+
+      try {
+        await invoke("move_to_trash", { paths });
+        for (const entry of eligibleEntries) entry.status = { ok: true };
+      } catch (e) {
+        const message = errMsg(e);
+        for (const entry of eligibleEntries) entry.status = { ok: false, message };
       }
     } finally {
       this._state = "done";
@@ -377,6 +396,14 @@ export class Organizer {
 
   // --- Private methods ---
 
+  private _compareEntryPaths(a: string, b: string): number {
+    return a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
+  }
+
+  private _sortEntries(entries: Entry[]): Entry[] {
+    return [...entries].sort((a, b) => this._compareEntryPaths(a.path, b.path));
+  }
+
   private _validateMoveTarget() {
     if (this.moveDebounceTimer) clearTimeout(this.moveDebounceTimer);
     this.moveDebounceTimer = setTimeout(async () => {
@@ -440,7 +467,7 @@ export class Organizer {
       await this._scanDir("", currentId, entries);
 
       if (currentId !== this.requestId) return;
-      this._entries = entries;
+      this._entries = this._sortEntries(entries);
       this._pathError = "";
     } catch (e) {
       if (currentId !== this.requestId) return;
@@ -547,7 +574,7 @@ export class Organizer {
 
       if (++this._scanCount % 200 === 0) {
         this._scanned = rootResult.length;
-        this._entries = [...rootResult];
+        this._entries = this._sortEntries(rootResult);
         await new Promise((resolve) => setTimeout(resolve, 0));
         if (requestId !== this.requestId) return false;
       }

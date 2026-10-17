@@ -1,8 +1,8 @@
 <script lang="ts">
-  import OrganizerView from "$lib/components/OrganizerView.svelte";
-  import WatcherView from "$lib/components/WatcherView.svelte";
-  import UpdateChecker from "$lib/components/UpdateChecker.svelte";
-  import { Zoom } from "$lib/states/zoom.svelte";
+  import OrganizerView from "../lib/components/OrganizerView.svelte";
+  import WatcherView from "../lib/components/WatcherView.svelte";
+  import UpdateChecker from "../lib/components/UpdateChecker.svelte";
+  import { Zoom } from "../lib/states/zoom.svelte";
   import { onDestroy } from "svelte";
 
   const zoom = new Zoom();

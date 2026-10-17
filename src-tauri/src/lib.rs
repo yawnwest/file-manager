@@ -110,6 +110,11 @@ async fn write_tagged_files(dir: String, recursive: bool) -> Result<serde_json::
     }
 }
 
+#[tauri::command]
+fn move_to_trash(paths: Vec<String>) -> Result<(), String> {
+    trash::delete_all(paths).map_err(|e| e.to_string())
+}
+
 #[cfg(target_os = "macos")]
 use tauri::menu::MenuItemKind;
 use tauri::menu::{AboutMetadataBuilder, Menu, PredefinedMenuItem};
@@ -129,7 +134,8 @@ pub fn run() {
             watcher::process_video,
             watcher::cancel_video,
             watcher::get_video_duration,
-            write_tagged_files
+            write_tagged_files,
+            move_to_trash
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { exists, mkdir, readDir, remove, stat, watch } from "@tauri-apps/plugin-fs";
 import type { UnwatchFn } from "@tauri-apps/plugin-fs";
-import { SYSTEM_FILES } from "$lib/constants";
-import { errMsg } from "$lib/utils/errors";
+import { SYSTEM_FILES } from "../constants";
+import { errMsg } from "../utils/errors";
 import { SvelteSet } from "svelte/reactivity";
 
 export type Operation = "rotate_left" | "rotate_right" | "fix";

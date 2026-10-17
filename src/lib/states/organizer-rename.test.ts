@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isVideoPath } from "$lib/constants";
+import { isVideoPath } from "../constants";
 import { applyRename, computeNewName } from "./organizer-rename";
 import type { Entry } from "./organizer-types";
 
